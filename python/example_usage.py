@@ -211,13 +211,13 @@ async def main():
 
     try:
         await example_basic_screenshot()
-        await example_thumbnail()
-        await example_full_page()
-        await example_base64()
-        await example_caching()
-        await example_multiple_urls()
-        await example_custom_settings()
-        await example_error_handling()
+        # await example_thumbnail()
+        # await example_full_page()
+        # await example_base64()
+        # await example_caching()
+        # await example_multiple_urls()
+        # await example_custom_settings()
+        # await example_error_handling()
 
         print("\n" + "=" * 50)
         print("🎉 All examples completed successfully!")

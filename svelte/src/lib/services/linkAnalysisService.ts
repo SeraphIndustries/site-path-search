@@ -1,10 +1,9 @@
 import type { LinkSummary } from '$lib/types/linkAnalysis';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { getLinksUrl } from '$lib/config.js';
 
 export class LinkAnalysisService {
 	static async analyzeLinks(url: string): Promise<LinkSummary> {
-		const response = await fetch(`${API_BASE_URL}/links?url=${encodeURIComponent(url)}`);
+		const response = await fetch(getLinksUrl(url));
 
 		if (!response.ok) {
 			throw new Error(

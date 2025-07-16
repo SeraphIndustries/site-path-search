@@ -238,3 +238,5 @@ __marimo__/
 python/test_cache/
 python/screenshot_cache/
 python/example_cache/
+
+*.jpg

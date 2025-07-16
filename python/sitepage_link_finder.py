@@ -184,14 +184,11 @@ class SiteLinkFinder:
 if __name__ == "__main__":
     url = "https://www.noahpinion.blog/p/tokyo-is-the-new-paris?utm_source=publication-search"
 
-    # Create instance
     finder = SiteLinkFinder(url)
 
-    # Print detailed results
     finder.print_detailed_links()
     finder.print_summary()
 
-    # Access properties
     print(
         f"\nNumber of regular links in main text: {len(finder.regular_links_within_main_text)}"
     )

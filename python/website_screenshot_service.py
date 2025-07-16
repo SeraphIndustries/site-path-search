@@ -7,10 +7,18 @@ import asyncio
 import base64
 import io
 import logging
+import platform
+import sys
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 from urllib.parse import urlparse
 import time
+
+if platform.system() == "Windows":
+    if sys.version_info >= (3, 8):
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    else:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 try:
     from playwright.async_api import async_playwright, Browser, Page
@@ -23,7 +31,6 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "playwright", "install", "chromium"])
     from playwright.async_api import async_playwright, Browser, Page
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -47,34 +54,47 @@ class WebsiteScreenshotService:
         self.playwright = None
 
     async def __aenter__(self):
-        """Async context manager entry."""
         await self.start()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit."""
         await self.stop()
 
     async def start(self):
-        """Start the browser instance."""
         if self.browser is None:
-            self.playwright = await async_playwright().start()
-            self.browser = await self.playwright.chromium.launch(
-                headless=self.headless,
-                args=[
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-accelerated-2d-canvas",
-                    "--no-first-run",
-                    "--no-zygote",
-                    "--disable-gpu",
-                ],
-            )
-            logger.info("Browser started successfully")
+            try:
+                self.playwright = await async_playwright().start()
+                self.browser = await self.playwright.chromium.launch(
+                    headless=self.headless,
+                    args=[
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-accelerated-2d-canvas",
+                        "--no-first-run",
+                        "--no-zygote",
+                        "--disable-gpu",
+                        "--disable-web-security",
+                        "--disable-features=VizDisplayCompositor",
+                    ],
+                )
+                logger.info("Browser started successfully")
+            except Exception as e:
+                logger.error(f"Failed to start browser: {e}")
+                # Try alternative browser launch
+                if self.playwright:
+                    try:
+                        self.browser = await self.playwright.firefox.launch(
+                            headless=self.headless
+                        )
+                        logger.info("Firefox browser started as fallback")
+                    except Exception as e2:
+                        logger.error(f"Failed to start Firefox browser: {e2}")
+                        raise Exception(f"Could not start any browser: {e}")
+                else:
+                    raise Exception(f"Could not start playwright: {e}")
 
     async def stop(self):
-        """Stop the browser instance."""
         if self.browser:
             await self.browser.close()
             self.browser = None
@@ -161,9 +181,16 @@ class WebsiteScreenshotService:
 
         except Exception as e:
             logger.error(f"Error taking screenshot of {url}: {str(e)}")
-            raise
+            try:
+                return self._generate_placeholder_sync(url, width, height)
+            except Exception as placeholder_error:
+                logger.error(f"Failed to generate placeholder: {placeholder_error}")
+                raise e
         finally:
-            await page.close()
+            try:
+                await page.close()
+            except Exception as close_error:
+                logger.warning(f"Failed to close page: {close_error}")
 
     async def take_screenshot_as_base64(self, url: str, **kwargs) -> str:
         """
@@ -239,6 +266,42 @@ class WebsiteScreenshotService:
         """
         return await self.take_screenshot(url, width=width, full_page=True, **kwargs)
 
+    def _generate_placeholder_sync(self, url: str, width: int, height: int) -> bytes:
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            import io
+
+            img = Image.new("RGB", (width, height), color="#f0f0f0")
+            draw = ImageDraw.Draw(img)
+
+            try:
+                domain = urlparse(url).netloc
+            except:
+                domain = "Unknown"
+
+            text = f"Preview\n{domain}"
+            try:
+                font = ImageFont.load_default()
+            except:
+                font = None
+
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+            x = (width - text_width) // 2
+            y = (height - text_height) // 2
+
+            draw.text((x, y), text, fill="#666666", font=font)
+
+            img_byte_arr = io.BytesIO()
+            img.save(img_byte_arr, format="JPEG", quality=85)
+            return img_byte_arr.getvalue()
+        except Exception as e:
+            logger.error(f"Failed to generate placeholder: {e}")
+            # Return a minimal placeholder
+            return b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t\x08\n\x0c\x14\r\x0c\x0b\x0b\x0c\x19\x12\x13\x0f\x14\x1d\x1a\x1f\x1e\x1d\x1a\x1c\x1c $.' \",#\x1c\x1c(7),01444\x1f'9=82<.342\xff\xc0\x00\x11\x08\x00\x01\x00\x01\x01\x01\x11\x00\x02\x11\x01\x03\x11\x01\xff\xc4\x00\x14\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\xff\xc4\x00\x14\x10\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xda\x00\x0c\x03\x01\x00\x02\x11\x03\x11\x00\x3f\x00\xaa\xff\xd9"
+
 
 class ScreenshotAPI:
     """
@@ -256,7 +319,6 @@ class ScreenshotAPI:
         self.cache_dir = Path(cache_dir) if cache_dir else Path("./screenshot_cache")
         self.max_cache_size = max_cache_size
         self.cache_dir.mkdir(exist_ok=True)
-        self.service = None
 
     async def get_screenshot(
         self,
@@ -285,12 +347,13 @@ class ScreenshotAPI:
                 logger.info(f"Using cached screenshot for {url}")
                 return cached
 
-        if not self.service:
-            self.service = WebsiteScreenshotService()
-            await self.service.start()
-
+        # Create a new service instance for each request to avoid Windows subprocess issues
+        service = None
         try:
-            screenshot = await self.service.take_screenshot(
+            service = WebsiteScreenshotService()
+            await service.start()
+
+            screenshot = await service.take_screenshot(
                 url, width=width, height=height, **kwargs
             )
 
@@ -302,9 +365,15 @@ class ScreenshotAPI:
         except Exception as e:
             logger.error(f"Failed to get screenshot for {url}: {e}")
             return self._generate_placeholder(url, width, height)
+        finally:
+            if service:
+                await service.stop()
+
+    async def cleanup(self):
+        """Cleanup method for compatibility - no longer needed since we create new instances per request."""
+        pass
 
     def _get_cache_key(self, url: str, width: int, height: int) -> str:
-        """Generate a cache key for the URL and dimensions."""
         import hashlib
 
         key_data = f"{url}_{width}_{height}".encode("utf-8")
@@ -313,7 +382,6 @@ class ScreenshotAPI:
     def _get_cached_screenshot(
         self, url: str, width: int, height: int
     ) -> Optional[bytes]:
-        """Get a cached screenshot if available."""
         cache_key = self._get_cache_key(url, width, height)
         cache_file = self.cache_dir / f"{cache_key}.jpg"
 
@@ -327,7 +395,6 @@ class ScreenshotAPI:
         return None
 
     def _cache_screenshot(self, url: str, width: int, height: int, screenshot: bytes):
-        """Cache a screenshot."""
         cache_key = self._get_cache_key(url, width, height)
         cache_file = self.cache_dir / f"{cache_key}.jpg"
 
@@ -340,7 +407,6 @@ class ScreenshotAPI:
             logger.warning(f"Failed to cache screenshot: {e}")
 
     def _cleanup_cache(self):
-        """Clean up old cache files."""
         cache_files = list(self.cache_dir.glob("*.jpg"))
         if len(cache_files) > self.max_cache_size:
             cache_files.sort(key=lambda x: x.stat().st_mtime)
@@ -351,7 +417,6 @@ class ScreenshotAPI:
                     logger.warning(f"Failed to remove old cache file {old_file}: {e}")
 
     def _generate_placeholder(self, url: str, width: int, height: int) -> bytes:
-        """Generate a placeholder image when screenshot fails."""
         from PIL import Image, ImageDraw, ImageFont
         import io
 
@@ -363,15 +428,12 @@ class ScreenshotAPI:
         except:
             domain = "Unknown"
 
-        # Add text
         text = f"Preview\n{domain}"
         try:
-            # Try to use a default font
             font = ImageFont.load_default()
         except:
             font = None
 
-        # Calculate text position
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
         text_height = bbox[3] - bbox[1]
@@ -381,7 +443,6 @@ class ScreenshotAPI:
 
         draw.text((x, y), text, fill="#666666", font=font)
 
-        # Convert to bytes
         img_byte_arr = io.BytesIO()
         img.save(img_byte_arr, format="JPEG", quality=85)
         return img_byte_arr.getvalue()
@@ -389,13 +450,11 @@ class ScreenshotAPI:
 
 # Convenience functions for easy use
 async def take_screenshot(url: str, **kwargs) -> bytes:
-    """Take a screenshot of a URL."""
     async with WebsiteScreenshotService() as service:
         return await service.take_screenshot(url, **kwargs)
 
 
 async def take_thumbnail(url: str, **kwargs) -> bytes:
-    """Take a thumbnail screenshot of a URL."""
     async with WebsiteScreenshotService() as service:
         return await service.take_thumbnail(url, **kwargs)
 
@@ -405,19 +464,25 @@ if __name__ == "__main__":
     async def main():
         url = "https://www.example.com"
 
-        # Basic screenshot
         async with WebsiteScreenshotService() as service:
             screenshot = await service.take_screenshot(url)
             print(f"Screenshot size: {len(screenshot)} bytes")
 
-        # Thumbnail
         async with WebsiteScreenshotService() as service:
             thumbnail = await service.take_thumbnail(url, width=200, height=150)
             print(f"Thumbnail size: {len(thumbnail)} bytes")
 
-        # Using the API wrapper
         api = ScreenshotAPI()
         screenshot = await api.get_screenshot(url, width=300, height=200)
         print(f"API screenshot size: {len(screenshot)} bytes")
 
-    asyncio.run(main())
+        # Cleanup is now handled automatically per request
+        await api.cleanup()
+
+    # Run the example
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
+    except Exception as e:
+        print(f"Error: {e}")

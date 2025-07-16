@@ -1,3 +1,14 @@
+import asyncio
+import platform
+import sys
+
+# Windows-specific asyncio configuration - must be done before any other imports
+if platform.system() == "Windows":
+    if sys.version_info >= (3, 8):
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    else:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -5,10 +16,27 @@ from pydantic import BaseModel
 from sitepage_link_finder import SiteLinkFinder
 from website_screenshot_service import ScreenshotAPI
 from typing import List, Optional
-import asyncio
+from contextlib import asynccontextmanager
 import base64
 
-app = FastAPI()
+# Initialize screenshot API - we'll create instances per request to avoid Windows subprocess issues
+screenshot_cache_dir = "./screenshot_cache"
+screenshot_max_cache_size = 100
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan event handler for startup and shutdown."""
+    # Startup
+    from pathlib import Path
+
+    Path(screenshot_cache_dir).mkdir(exist_ok=True)
+    yield
+    # Shutdown - simplified to avoid recursion issues
+    # The event loop will handle cleanup automatically
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,9 +45,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Initialize screenshot API
-screenshot_api = ScreenshotAPI(cache_dir="./screenshot_cache", max_cache_size=100)
 
 
 class LinkSummary(BaseModel):
@@ -67,26 +92,33 @@ async def take_screenshot(request: ScreenshotRequest):
     Take a screenshot of a website and return it as base64.
     """
     try:
-        screenshot_bytes = await screenshot_api.get_screenshot(
-            url=request.url,
-            width=request.width or 200,
-            height=request.height or 150,
-            full_page=request.full_page or False,
-            quality=request.quality or 90,
-            format=request.format or "jpeg",
-            use_cache=request.use_cache or True,
+        # Create a new ScreenshotAPI instance for each request to avoid Windows subprocess issues
+        api = ScreenshotAPI(
+            cache_dir=screenshot_cache_dir, max_cache_size=screenshot_max_cache_size
         )
+        try:
+            screenshot_bytes = await api.get_screenshot(
+                url=request.url,
+                width=request.width or 200,
+                height=request.height or 150,
+                full_page=request.full_page or False,
+                quality=request.quality or 90,
+                format=request.format or "jpeg",
+                use_cache=request.use_cache or True,
+            )
 
-        image_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
+            image_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
 
-        return ScreenshotResponse(
-            url=request.url,
-            image_base64=image_base64,
-            width=request.width or 200,
-            height=request.height or 150,
-            format=request.format or "jpeg",
-            size_bytes=len(screenshot_bytes),
-        )
+            return ScreenshotResponse(
+                url=request.url,
+                image_base64=image_base64,
+                width=request.width or 200,
+                height=request.height or 150,
+                format=request.format or "jpeg",
+                size_bytes=len(screenshot_bytes),
+            )
+        finally:
+            await api.cleanup()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -105,20 +137,40 @@ async def take_screenshot_get(
     Take a screenshot of a website and return it as an image response.
     """
     try:
-        screenshot_bytes = await screenshot_api.get_screenshot(
-            url=url,
-            width=width,
-            height=height,
-            full_page=full_page,
-            quality=quality,
-            format=format,
-            use_cache=use_cache,
+        # Create a new ScreenshotAPI instance for each request to avoid Windows subprocess issues
+        api = ScreenshotAPI(
+            cache_dir=screenshot_cache_dir, max_cache_size=screenshot_max_cache_size
         )
+        try:
+            screenshot_bytes = await api.get_screenshot(
+                url=url,
+                width=width,
+                height=height,
+                full_page=full_page,
+                quality=quality,
+                format=format,
+                use_cache=use_cache,
+            )
 
-        content_type = f"image/{format}"
-        return Response(content=screenshot_bytes, media_type=content_type)
+            content_type = f"image/{format}"
+            return Response(content=screenshot_bytes, media_type=content_type)
+        finally:
+            await api.cleanup()
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Screenshot failed for {url}: {str(e)}")
+
+        error_detail = f"Screenshot failed: {str(e)}"
+        if "NotImplementedError" in str(e):
+            error_detail = (
+                "Screenshot service unavailable - browser initialization failed"
+            )
+        elif "timeout" in str(e).lower():
+            error_detail = "Screenshot timed out - website may be slow or unavailable"
+
+        raise HTTPException(status_code=400, detail=error_detail)
 
 
 @app.get("/screenshot/thumbnail")
@@ -128,9 +180,6 @@ async def take_thumbnail(
     height: int = Query(150, description="Thumbnail height"),
     quality: int = Query(85, description="Image quality (1-100)"),
 ):
-    """
-    Take a thumbnail screenshot of a website.
-    """
     try:
         from website_screenshot_service import WebsiteScreenshotService
 
@@ -150,9 +199,6 @@ async def take_full_page_screenshot(
     width: int = Query(1200, description="Viewport width"),
     quality: int = Query(90, description="Image quality (1-100)"),
 ):
-    """
-    Take a full-page screenshot of a website.
-    """
     try:
         from website_screenshot_service import WebsiteScreenshotService
 
@@ -168,9 +214,6 @@ async def take_full_page_screenshot(
 
 @app.get("/health")
 async def health_check():
-    """
-    Health check endpoint.
-    """
     return {"status": "healthy", "service": "site-path-search-api"}
 
 

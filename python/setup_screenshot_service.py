@@ -11,7 +11,6 @@ from pathlib import Path
 
 
 def run_command(command, description):
-    """Run a command and handle errors."""
     print(f"🔄 {description}...")
     try:
         result = subprocess.run(
@@ -26,7 +25,6 @@ def run_command(command, description):
 
 
 def check_python_version():
-    """Check if Python version is compatible."""
     print("🐍 Checking Python version...")
     version = sys.version_info
     if version.major < 3 or (version.major == 3 and version.minor < 8):
@@ -37,7 +35,6 @@ def check_python_version():
 
 
 def install_dependencies():
-    """Install Python dependencies."""
     print("\n📦 Installing Python dependencies...")
 
     requirements_file = Path("requirements.txt")
@@ -55,10 +52,8 @@ def install_dependencies():
 
 
 def install_playwright():
-    """Install Playwright and browsers."""
     print("\n🌐 Installing Playwright...")
 
-    # Install Playwright
     if not run_command(
         f"{sys.executable} -m playwright install", "Installing Playwright browsers"
     ):
@@ -74,7 +69,6 @@ def install_playwright():
 
 
 def create_directories():
-    """Create necessary directories."""
     print("\n📁 Creating directories...")
 
     directories = ["screenshot_cache", "logs"]
@@ -91,7 +85,6 @@ def create_directories():
 
 
 def test_installation():
-    """Test the installation."""
     print("\n🧪 Testing installation...")
 
     try:
@@ -123,7 +116,6 @@ def test_installation():
 
 
 def print_next_steps():
-    """Print next steps for the user."""
     print("\n" + "=" * 50)
     print("🎉 Setup completed successfully!")
     print("=" * 50)
@@ -142,7 +134,6 @@ def print_next_steps():
 
 
 def main():
-    """Main setup function."""
     print("🚀 Website Screenshot Service Setup")
     print("=" * 40)
 

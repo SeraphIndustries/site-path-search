@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { getScreenshotUrl, SCREENSHOT_CONFIG } from '$lib/config.js';
+
 	export let url: string;
 	export let isDark: boolean = false;
 	export let position: { x: number; y: number };
@@ -16,10 +18,13 @@
 		hasError = false;
 
 		try {
-			// Use our custom screenshot service
-			const response = await fetch(
-				`/screenshot?url=${encodeURIComponent(url)}&width=200&height=150&quality=85`
-			);
+			// Use our custom screenshot service via proxy - get screenshot
+			const screenshotUrl = getScreenshotUrl(url, {
+				width: SCREENSHOT_CONFIG.fullPageWidth,
+				height: SCREENSHOT_CONFIG.fullPageHeight,
+				quality: SCREENSHOT_CONFIG.defaultQuality
+			});
+			const response = await fetch(screenshotUrl);
 
 			if (response.ok) {
 				// Convert the image blob to a data URL
@@ -59,13 +64,14 @@
 	>
 		<div class="preview-header">
 			<span class="preview-url">{url}</span>
+			<span class="preview-type">Screenshot</span>
 		</div>
 
 		<div class="preview-content">
 			{#if isLoading}
 				<div class="loading-preview">
 					<div class="preview-spinner"></div>
-					<span>Loading preview...</span>
+					<span>Taking screenshot...</span>
 				</div>
 			{:else if hasError}
 				<div class="error-preview">
@@ -86,7 +92,7 @@
 <style>
 	.website-preview {
 		position: absolute;
-		width: 220px;
+		width: 280px; /* Increased from 220px to better accommodate full page screenshots */
 		background: white;
 		border: 2px solid #e5e7eb;
 		border-radius: 0.5rem;
@@ -108,6 +114,9 @@
 		background: #f9fafb;
 		border-bottom: 1px solid #e5e7eb;
 		border-radius: 0.5rem 0.5rem 0 0;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
 	}
 
 	.website-preview.dark .preview-header {
@@ -128,9 +137,21 @@
 		color: #9ca3af;
 	}
 
+	.preview-type {
+		font-size: 0.625rem;
+		color: #3b82f6;
+		font-weight: 500;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.website-preview.dark .preview-type {
+		color: #60a5fa;
+	}
+
 	.preview-content {
 		padding: 0.5rem;
-		height: 160px;
+		height: 200px; /* Increased from 160px to better accommodate full page screenshots */
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -139,8 +160,18 @@
 	.preview-image {
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
+		object-fit: contain; /* Changed from 'cover' to 'contain' to show full image */
 		border-radius: 0.25rem;
+		background-color: #f8f9fa; /* Light background for transparent areas */
+		transition: transform 0.3s ease;
+	}
+
+	.preview-image:hover {
+		transform: scale(1.05); /* Slight zoom on hover */
+	}
+
+	.website-preview.dark .preview-image {
+		background-color: #374151; /* Dark background for dark mode */
 	}
 
 	.loading-preview {
