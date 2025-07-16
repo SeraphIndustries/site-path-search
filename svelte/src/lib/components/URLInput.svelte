@@ -4,10 +4,7 @@
 	export let onFetch: () => void;
 
 	function handleKeyDown(event: KeyboardEvent) {
-		console.log('Key pressed:', event.key);
-		console.log('handleKeyDown url:', url);
 		if (event.key === 'Enter') {
-			console.log('Enter key pressed');
 			onFetch();
 		}
 	}

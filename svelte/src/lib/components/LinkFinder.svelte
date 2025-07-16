@@ -12,8 +12,6 @@
 	let showArrow = false;
 
 	async function fetchLinks() {
-		console.log('fetchLinks called');
-		console.log('url:', url);
 		if (url.trim()) {
 			isLoading = true;
 			error = '';
