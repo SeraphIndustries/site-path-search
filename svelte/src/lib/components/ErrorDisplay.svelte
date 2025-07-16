@@ -3,13 +3,11 @@
 
 	let isDark = false;
 
-	// Check for dark mode
 	function checkDarkMode() {
 		const mainContainer = document.querySelector('.main-container');
 		isDark = mainContainer?.classList.contains('dark') || false;
 	}
 
-	// Listen for theme changes
 	if (typeof window !== 'undefined') {
 		const observer = new MutationObserver(() => {
 			checkDarkMode();
@@ -20,7 +18,6 @@
 			observer.observe(mainContainer, { attributes: true });
 		}
 
-		// Initial check
 		checkDarkMode();
 	}
 </script>

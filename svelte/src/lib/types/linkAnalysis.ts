@@ -8,3 +8,21 @@ export interface LinkSummary {
 	other_links: number;
 	regular_links: string[];
 }
+
+export interface PathNode {
+	id: string;
+	url: string;
+	linkSummary: LinkSummary | null;
+	error: string;
+	isLoading: boolean;
+	parentId?: string;
+	level: number;
+	position: { x: number; y: number };
+}
+
+export interface PathState {
+	startUrl: string;
+	endUrl: string;
+	nodes: Map<string, PathNode>;
+	selectedNodeId: string | null;
+}

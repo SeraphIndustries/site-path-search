@@ -3,11 +3,11 @@
 @plugin '@tailwindcss/typography';
 
 @layer components {
+	/* Global styles for the pathfinder */
 	.main-container {
-		@apply min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-8;
+		@apply min-h-screen bg-gradient-to-br from-blue-50 to-blue-100;
 		min-height: 100vh;
 		background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-		padding: 32px;
 	}
 
 	.main-container.dark {
@@ -16,20 +16,32 @@
 	}
 
 	.main-content {
-		@apply mx-auto max-w-4xl;
-		max-width: 896px;
-		margin: 0 auto;
+		width: 100%;
+		height: 100vh;
+		min-height: 600px;
+		display: flex;
+		flex-direction: column;
 	}
 
 	.header-container {
-		@apply mb-8 flex items-center justify-between;
+		@apply flex items-center justify-between;
+		padding: 1rem;
+		border-bottom: 1px solid #e5e7eb;
+		background: rgba(255, 255, 255, 0.8);
+		backdrop-filter: blur(10px);
+	}
+
+	.main-container.dark .header-container {
+		background: rgba(31, 41, 55, 0.8);
+		border-bottom-color: #374151;
 	}
 
 	.main-title {
-		@apply text-4xl font-bold text-blue-900;
-		font-size: 36px;
+		@apply text-2xl font-bold text-blue-900;
+		font-size: 1.875rem;
 		font-weight: 700;
 		color: #1e3a8a;
+		margin: 0;
 	}
 
 	.main-title.dark {
