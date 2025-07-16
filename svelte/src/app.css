@@ -1,3 +1,214 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
+
+@layer components {
+	.main-container {
+		@apply min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-8;
+		min-height: 100vh;
+		background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+		padding: 32px;
+	}
+
+	.main-content {
+		@apply mx-auto max-w-4xl;
+		max-width: 896px;
+		margin: 0 auto;
+	}
+
+	.main-title {
+		@apply mb-8 text-center text-4xl font-bold text-blue-900;
+		font-size: 36px;
+		font-weight: 700;
+		color: #1e3a8a;
+		text-align: center;
+		margin-bottom: 32px;
+	}
+	.url-input-container {
+		@apply relative;
+		margin: 20px 0;
+	}
+
+	.url-input-wrapper {
+		@apply rounded-3xl border-2 border-blue-200 bg-white p-2 shadow-lg transition-all duration-300 hover:border-blue-300;
+		background: white;
+		border-radius: 24px;
+		padding: 8px;
+		box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+		border: 2px solid #bfdbfe;
+	}
+
+	.url-input-field {
+		@apply w-full rounded-2xl border-none px-6 py-4 text-gray-700 placeholder-gray-400 transition-all duration-200 outline-none focus:ring-2 focus:ring-blue-300;
+		width: 100%;
+		padding: 16px 24px;
+		border-radius: 16px;
+		border: none;
+		outline: none;
+		color: #374151;
+		background: transparent;
+	}
+
+	/* Button Styles */
+	.button-container {
+		@apply mt-4 flex justify-center;
+		margin-top: 16px;
+		display: flex;
+		justify-content: center;
+	}
+
+	.primary-button {
+		@apply transform rounded-full bg-blue-500 px-8 py-3 font-semibold text-white shadow-lg transition-all duration-200 hover:scale-105 hover:bg-blue-600 focus:ring-4 focus:ring-blue-300 focus:outline-none active:scale-95 active:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300;
+		padding: 12px 32px;
+		background: #3b82f6;
+		color: white;
+		font-weight: 600;
+		border-radius: 9999px;
+		box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+		border: none;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.loading-spinner {
+		@apply h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent;
+		height: 20px;
+		width: 20px;
+		border: 2px solid white;
+		border-top: 2px solid transparent;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	.loading-content {
+		@apply flex items-center space-x-2;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.results-container {
+		@apply rounded-2xl border border-blue-200 bg-white p-6 shadow-lg;
+	}
+
+	.results-title {
+		@apply mb-6 text-center text-2xl font-bold text-blue-900;
+	}
+
+	.results-grid {
+		@apply grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3;
+	}
+
+	.arrow-animation {
+		@apply flex justify-center;
+	}
+
+	.arrow-icon {
+		@apply animate-bounce text-2xl text-blue-500;
+	}
+
+	.link-card {
+		@apply cursor-pointer rounded-xl border-2 p-4 transition-all duration-300 hover:scale-105 hover:shadow-lg;
+		padding: 16px;
+		border-radius: 12px;
+		transition: all 0.3s;
+		cursor: pointer;
+	}
+
+	.link-card-content {
+		@apply flex items-center space-x-3;
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.link-card-icon {
+		@apply text-2xl;
+		font-size: 24px;
+	}
+
+	.link-card-title {
+		@apply text-sm font-semibold;
+		font-weight: 600;
+		font-size: 14px;
+	}
+
+	.link-card-value {
+		@apply text-2xl font-bold;
+		font-size: 24px;
+		font-weight: 700;
+	}
+
+	.link-card-blue {
+		@apply border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100;
+		background: #eff6ff;
+		border: 2px solid #bfdbfe;
+		color: #1d4ed8;
+	}
+
+	.link-card-green {
+		@apply border-green-200 bg-green-50 text-green-700 hover:bg-green-100;
+		background: #f0fdf4;
+		border: 2px solid #bbf7d0;
+		color: #15803d;
+	}
+
+	.link-card-purple {
+		@apply border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100;
+		background: #faf5ff;
+		border: 2px solid #c4b5fd;
+		color: #7c3aed;
+	}
+
+	.link-card-indigo {
+		@apply border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100;
+		background: #eef2ff;
+		border: 2px solid #c7d2fe;
+		color: #4338ca;
+	}
+
+	.link-card-orange {
+		@apply border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100;
+		background: #fff7ed;
+		border: 2px solid #fed7aa;
+		color: #ea580c;
+	}
+
+	.error-container {
+		@apply rounded-xl border border-red-200 bg-red-50 p-4;
+	}
+
+	.error-message {
+		@apply font-medium text-red-700;
+	}
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.primary-button:hover {
+	background: #2563eb !important;
+	transform: scale(1.05);
+}
+
+.primary-button:active {
+	background: #1d4ed8 !important;
+	transform: scale(0.95);
+}
+
+.primary-button:disabled {
+	background: #d1d5db !important;
+	cursor: not-allowed;
+	transform: none;
+}
+
+.link-card:hover {
+	transform: scale(1.05);
+	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}

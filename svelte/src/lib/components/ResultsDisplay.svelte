@@ -9,16 +9,16 @@
 {#if linkSummary}
 	<!-- Arrow Animation -->
 	{#if showArrow}
-		<div class="flex justify-center">
-			<div class="animate-bounce text-2xl text-blue-500">↓</div>
+		<div class="arrow-animation">
+			<div class="arrow-icon">↓</div>
 		</div>
 	{/if}
 
 	<!-- Results Section -->
-	<div class="rounded-2xl border border-blue-200 bg-white p-6 shadow-lg">
-		<h2 class="mb-6 text-center text-2xl font-bold text-blue-900">Link Analysis Results</h2>
+	<div class="results-container">
+		<h2 class="results-title">Link Analysis Results</h2>
 
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+		<div class="results-grid">
 			<LinkCard title="Total Links" value={linkSummary.total_links} icon="🔗" color="blue" />
 			<LinkCard
 				title="Main Text Links"

@@ -29,4 +29,8 @@
 	"editor.detectIndentation": false,
 	"editor.formatOnPaste": true,
 	"editor.formatOnSaveMode": "file",
+  "files.associations": {
+    "*.css": "tailwindcss",
+    "*.scss": "tailwindcss",
+  },
 }
