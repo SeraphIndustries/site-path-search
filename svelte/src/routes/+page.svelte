@@ -1,45 +1,20 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  let url = '';
-  let linkSummary: any = null;
-  let error = '';
-
-  async function fetchLinks() {
-    if (url.trim()) {
-      try {
-        const response = await fetch(`http://localhost:8000/links?url=${encodeURIComponent(url)}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch data from server');
-        }
-        linkSummary = await response.json();
-      } catch (err) {
-        if (err instanceof Error) {
-          error = err.message;
-        } else {
-          error = String(err);
-        }
-      }
-    }
-  }
+	import { onMount } from 'svelte';
+	import LinkFinder from '$lib/components/LinkFinder.svelte';
 </script>
 
-<main>
-  <h1>Site Page Link Finder</h1>
-  <input type="text" bind:value={url} placeholder="Enter URL" />
-  <button on:click={fetchLinks}>Find Links</button>
-  {#if error}
-    <p style="color: red">{error}</p>
-  {/if}
-  {#if linkSummary}
-    <div>
-      <h2>Link Summary</h2>
-      <ul>
-        <li>Total Links: {linkSummary.total_links}</li>
-        <li>Main Text Links: {linkSummary.main_text_links}</li>
-        <li>Image Links Within Main Text: {linkSummary.image_links_within_main_text}</li>
-        <li>Regular Links Within Main Text: {linkSummary.regular_links_within_main_text}</li>
-        <li>Other Links: {linkSummary.other_links}</li>
-      </ul>
-    </div>
-  {/if}
+<main
+	class="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-8"
+	style="min-height: 100vh; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 32px;"
+>
+	<div class="mx-auto max-w-4xl" style="max-width: 896px; margin: 0 auto;">
+		<h1
+			class="mb-8 text-center text-4xl font-bold text-blue-900"
+			style="font-size: 36px; font-weight: 700; color: #1e3a8a; text-align: center; margin-bottom: 32px;"
+		>
+			Site Page Link Finder
+		</h1>
+
+		<LinkFinder />
+	</div>
 </main>
