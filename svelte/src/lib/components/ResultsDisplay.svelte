@@ -5,25 +5,43 @@
 
 	export let linkSummary: LinkSummary | null;
 	export let showArrow: boolean;
+
+	let isDark = false;
+
+	function checkDarkMode() {
+		const mainContainer = document.querySelector('.main-container');
+		isDark = mainContainer?.classList.contains('dark') || false;
+	}
+
+	if (typeof window !== 'undefined') {
+		const observer = new MutationObserver(() => {
+			checkDarkMode();
+		});
+
+		const mainContainer = document.querySelector('.main-container');
+		if (mainContainer) {
+			observer.observe(mainContainer, { attributes: true });
+		}
+
+		checkDarkMode();
+	}
 </script>
 
 {#if linkSummary}
-	<!-- Arrow Animation -->
 	{#if showArrow}
 		<div class="arrow-animation">
-			<div class="arrow-icon">↓</div>
+			<div class="arrow-icon" class:dark={isDark}>↓</div>
 		</div>
 	{/if}
 
-	<!-- Results Section -->
-	<div class="results-container">
+	<div class="results-container" class:dark={isDark}>
 		<div class="results-header">
-			<h2 class="results-title">Link Analysis Results</h2>
-			<SummaryBubble {linkSummary} />
+			<h2 class="results-title" class:dark={isDark}>Link Analysis Results</h2>
+			<SummaryBubble {linkSummary} {isDark} />
 		</div>
 
 		{#if linkSummary.regular_links && linkSummary.regular_links.length > 0}
-			<LinksList links={linkSummary.regular_links} />
+			<LinksList links={linkSummary.regular_links} {isDark} />
 		{/if}
 	</div>
 {/if}

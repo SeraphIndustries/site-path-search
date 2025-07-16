@@ -2,34 +2,39 @@
 	import type { LinkSummary } from '$lib/types/linkAnalysis';
 
 	export let linkSummary: LinkSummary;
+	export let isDark: boolean = false;
 </script>
 
-<div class="summary-bubble">
+<div class="summary-bubble" class:dark={isDark}>
 	<div class="summary-content">
 		<div class="summary-item">
 			<span class="summary-icon">🔗</span>
-			<span class="summary-number">{linkSummary.total_links}</span>
-			<span class="summary-label">Total</span>
+			<span class="summary-number" class:dark={isDark}>{linkSummary.total_links}</span>
+			<span class="summary-label" class:dark={isDark}>Total</span>
 		</div>
 		<div class="summary-item">
 			<span class="summary-icon">📝</span>
-			<span class="summary-number">{linkSummary.main_text_links}</span>
-			<span class="summary-label">Main Text</span>
+			<span class="summary-number" class:dark={isDark}>{linkSummary.main_text_links}</span>
+			<span class="summary-label" class:dark={isDark}>Main Text</span>
 		</div>
 		<div class="summary-item">
 			<span class="summary-icon">🖼️</span>
-			<span class="summary-number">{linkSummary.image_links_within_main_text}</span>
-			<span class="summary-label">Images</span>
+			<span class="summary-number" class:dark={isDark}
+				>{linkSummary.image_links_within_main_text}</span
+			>
+			<span class="summary-label" class:dark={isDark}>Images</span>
 		</div>
 		<div class="summary-item">
 			<span class="summary-icon">🔗</span>
-			<span class="summary-number">{linkSummary.regular_links_within_main_text}</span>
-			<span class="summary-label">Regular</span>
+			<span class="summary-number" class:dark={isDark}
+				>{linkSummary.regular_links_within_main_text}</span
+			>
+			<span class="summary-label" class:dark={isDark}>Regular</span>
 		</div>
 		<div class="summary-item">
 			<span class="summary-icon">📌</span>
-			<span class="summary-number">{linkSummary.other_links}</span>
-			<span class="summary-label">Other</span>
+			<span class="summary-number" class:dark={isDark}>{linkSummary.other_links}</span>
+			<span class="summary-label" class:dark={isDark}>Other</span>
 		</div>
 	</div>
 </div>
