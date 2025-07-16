@@ -46,6 +46,13 @@
 		isDragging = false;
 	}
 
+	function handleKeyDown(event: KeyboardEvent) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			onSelect();
+		}
+	}
+
 	// Global mouse move handler for better dragging
 	function handleGlobalMouseMove(event: MouseEvent) {
 		if (isDragging) {
@@ -97,6 +104,10 @@
 	$: displayedLinks = showAllLinks
 		? node.linkSummary?.regular_links || []
 		: (node.linkSummary?.regular_links || []).slice(0, linksToShow);
+
+	// Use the node properties for color coding
+	$: isStartNode = node.isStartNode;
+	$: isEndNode = node.isEndNode;
 </script>
 
 <div
@@ -104,13 +115,21 @@
 	class:selected={isSelected}
 	class:expanded={isExpanded}
 	class:dark={isDark}
+	class:start-node={isStartNode}
+	class:end-node={isEndNode}
 	style="left: {node.position.x}px; top: {node.position.y}px;"
 	on:mousedown={handleMouseDown}
 	on:click={onSelect}
+	on:keydown={handleKeyDown}
+	tabindex="0"
+	role="button"
+	aria-label="Path node for {node.url}"
 >
 	<div class="node-header">
 		<div class="node-title">
-			<span class="node-level">L{node.level}</span>
+			<span class="node-level" class:start-level={isStartNode} class:end-level={isEndNode}
+				>L{node.level}</span
+			>
 			<span class="node-url">{node.url}</span>
 		</div>
 		<button class="expand-button" on:click|stopPropagation={toggleExpanded}>
@@ -182,14 +201,36 @@
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
 	}
 
-	.path-node.selected {
+	/* Start node styling */
+	.path-node.start-node {
 		border-color: #3b82f6;
-		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+		background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+	}
+
+	.path-node.dark.start-node {
+		background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+		border-color: #60a5fa;
+	}
+
+	/* End node styling */
+	.path-node.end-node {
+		border-color: #10b981;
+		background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+	}
+
+	.path-node.dark.end-node {
+		background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+		border-color: #34d399;
+	}
+
+	.path-node.selected {
+		border-color: #f59e0b;
+		box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 	}
 
 	.path-node.dark.selected {
-		border-color: #60a5fa;
-		box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+		border-color: #fbbf24;
+		box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
 	}
 
 	.path-node.expanded {
@@ -211,6 +252,26 @@
 		background: #374151;
 	}
 
+	.path-node.start-node .node-header {
+		background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+		border-bottom-color: #3b82f6;
+	}
+
+	.path-node.dark.start-node .node-header {
+		background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+		border-bottom-color: #60a5fa;
+	}
+
+	.path-node.end-node .node-header {
+		background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+		border-bottom-color: #10b981;
+	}
+
+	.path-node.dark.end-node .node-header {
+		background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+		border-bottom-color: #34d399;
+	}
+
 	.node-title {
 		display: flex;
 		align-items: center;
@@ -229,8 +290,24 @@
 		flex-shrink: 0;
 	}
 
+	.node-level.start-level {
+		background: #1d4ed8;
+	}
+
+	.node-level.end-level {
+		background: #047857;
+	}
+
 	.path-node.dark .node-level {
 		background: #60a5fa;
+	}
+
+	.path-node.dark .node-level.start-level {
+		background: #3b82f6;
+	}
+
+	.path-node.dark .node-level.end-level {
+		background: #10b981;
 	}
 
 	.node-url {
@@ -407,13 +484,14 @@
 		color: #374151;
 		cursor: pointer;
 		transition: all 0.2s;
-		word-break: break-all;
-		line-height: 1.4;
 		display: flex;
 		align-items: flex-start;
 		width: 100%;
 		min-height: 2.5rem;
 		white-space: normal;
+		word-break: break-all;
+		line-height: 1.4;
+		height: auto;
 	}
 
 	.link-button:hover {
@@ -439,6 +517,7 @@
 		overflow-wrap: break-word;
 		word-wrap: break-word;
 		hyphens: auto;
+		line-height: 1.4;
 	}
 
 	.more-links {

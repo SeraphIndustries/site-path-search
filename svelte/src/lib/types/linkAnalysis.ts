@@ -18,6 +18,8 @@ export interface PathNode {
 	parentId?: string;
 	level: number;
 	position: { x: number; y: number };
+	isStartNode: boolean;
+	isEndNode: boolean;
 }
 
 export interface PathState {

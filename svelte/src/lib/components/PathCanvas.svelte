@@ -8,6 +8,7 @@
 	export let onNodePositionUpdate: (nodeId: string, position: { x: number; y: number }) => void;
 
 	let canvasContainer: HTMLDivElement;
+	let canvasWrapper: HTMLDivElement;
 	let isDragging = false;
 	let dragStart = { x: 0, y: 0 };
 	let canvasOffset = { x: 0, y: 0 };
@@ -23,7 +24,7 @@
 
 	function handleMouseDown(event: MouseEvent) {
 		// Only handle canvas dragging if clicking on the canvas itself, not on nodes
-		if (event.target === canvasContainer) {
+		if (event.target === canvasContainer || event.target === canvasWrapper) {
 			isDragging = true;
 			dragStart = { x: event.clientX - canvasOffset.x, y: event.clientY - canvasOffset.y };
 		}
@@ -39,6 +40,33 @@
 
 	function handleMouseUp() {
 		isDragging = false;
+	}
+
+	function handleKeyDown(event: KeyboardEvent) {
+		if (
+			event.key === 'ArrowUp' ||
+			event.key === 'ArrowDown' ||
+			event.key === 'ArrowLeft' ||
+			event.key === 'ArrowRight'
+		) {
+			event.preventDefault();
+			const step = event.shiftKey ? 50 : 20;
+			switch (event.key) {
+				case 'ArrowUp':
+					canvasOffset.y += step;
+					break;
+				case 'ArrowDown':
+					canvasOffset.y -= step;
+					break;
+				case 'ArrowLeft':
+					canvasOffset.x += step;
+					break;
+				case 'ArrowRight':
+					canvasOffset.x -= step;
+					break;
+			}
+			updateCanvasTransform();
+		}
 	}
 
 	function handleWheel(event: WheelEvent) {
@@ -110,50 +138,63 @@
 
 <div class="canvas-wrapper" class:dark={isDark}>
 	<div
-		bind:this={canvasContainer}
-		class="path-canvas"
+		bind:this={canvasWrapper}
+		class="canvas-viewport"
+		role="button"
+		tabindex="0"
+		aria-label="Interactive path canvas - drag to pan, scroll to zoom, use arrow keys to navigate"
 		on:mousedown={handleMouseDown}
 		on:mousemove={handleMouseMove}
 		on:mouseup={handleMouseUp}
 		on:wheel={handleWheel}
+		on:keydown={handleKeyDown}
 	>
-		<!-- Connection lines -->
-		<svg class="connections" width="100%" height="100%">
-			{#each nodes as node}
-				{#if node.parentId}
-					{@const parentNode = pathState.nodes.get(node.parentId)}
-					{#if parentNode}
-						<line
-							x1={parentNode.position.x + 150}
-							y1={parentNode.position.y + 75}
-							x2={node.position.x}
-							y2={node.position.y + 75}
-							stroke={isDark ? '#9ca3af' : '#6b7280'}
-							stroke-width="2"
-							marker-end="url(#arrowhead)"
-						/>
+		<div bind:this={canvasContainer} class="path-canvas">
+			<!-- Connection lines -->
+			<svg class="connections" width="100%" height="100%">
+				{#each nodes as node}
+					{#if node.parentId}
+						{@const parentNode = pathState.nodes.get(node.parentId)}
+						{#if parentNode}
+							<line
+								x1={parentNode.position.x + 150}
+								y1={parentNode.position.y + 75}
+								x2={node.position.x}
+								y2={node.position.y + 75}
+								stroke={isDark ? '#9ca3af' : '#6b7280'}
+								stroke-width="2"
+								marker-end="url(#arrowhead)"
+							/>
+						{/if}
 					{/if}
-				{/if}
-			{/each}
-			<defs>
-				<marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-					<polygon points="0 0, 10 3.5, 0 7" fill={isDark ? '#9ca3af' : '#6b7280'} />
-				</marker>
-			</defs>
-		</svg>
+				{/each}
+				<defs>
+					<marker
+						id="arrowhead"
+						markerWidth="10"
+						markerHeight="7"
+						refX="9"
+						refY="3.5"
+						orient="auto"
+					>
+						<polygon points="0 0, 10 3.5, 0 7" fill={isDark ? '#9ca3af' : '#6b7280'} />
+					</marker>
+				</defs>
+			</svg>
 
-		<!-- Path nodes -->
-		{#each nodes as node (node.id)}
-			<PathNode
-				{node}
-				{isDark}
-				isSelected={node.id === pathState.selectedNodeId}
-				onSelect={() => onNodeSelect(node.id)}
-				onLinkClick={(linkUrl: string) => onLinkClick(node.id, linkUrl)}
-				onPositionUpdate={(position: { x: number; y: number }) =>
-					onNodePositionUpdate(node.id, position)}
-			/>
-		{/each}
+			<!-- Path nodes -->
+			{#each nodes as node (node.id)}
+				<PathNode
+					{node}
+					{isDark}
+					isSelected={node.id === pathState.selectedNodeId}
+					onSelect={() => onNodeSelect(node.id)}
+					onLinkClick={(linkUrl: string) => onLinkClick(node.id, linkUrl)}
+					onPositionUpdate={(position: { x: number; y: number }) =>
+						onNodePositionUpdate(node.id, position)}
+				/>
+			{/each}
+		</div>
 	</div>
 
 	<!-- Canvas controls -->
@@ -197,17 +238,37 @@
 		background: #1f2937;
 	}
 
-	.path-canvas {
+	.canvas-viewport {
 		width: 100%;
 		height: 100%;
 		position: relative;
 		cursor: grab;
-		transition: transform 0.1s ease;
-		transform-origin: 0 0;
+		overflow: hidden;
 	}
 
-	.path-canvas:active {
+	.canvas-viewport:active {
 		cursor: grabbing;
+	}
+
+	.path-canvas {
+		width: 10000px;
+		height: 10000px;
+		position: absolute;
+		top: -5000px;
+		left: -5000px;
+		transition: transform 0.1s ease;
+		transform-origin: center;
+		background:
+			linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
+		background-size: 50px 50px;
+	}
+
+	.canvas-wrapper.dark .path-canvas {
+		background:
+			linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+		background-size: 50px 50px;
 	}
 
 	.connections {
@@ -216,6 +277,8 @@
 		left: 0;
 		pointer-events: none;
 		z-index: 1;
+		width: 100%;
+		height: 100%;
 	}
 
 	.canvas-controls {

@@ -42,9 +42,10 @@
 	<div class="url-inputs-wrapper">
 		<!-- Start URL Input -->
 		<div class="url-input-section">
-			<label class="url-label" class:dark={isDark}>Start URL</label>
+			<label for="start-url" class="url-label" class:dark={isDark}>Start URL</label>
 			<div class="url-input-wrapper" class:dark={isDark}>
 				<input
+					id="start-url"
 					type="text"
 					bind:value={startUrl}
 					on:keypress={(e) => handleKeyDown(e, 'start')}
@@ -72,9 +73,10 @@
 
 		<!-- End URL Input -->
 		<div class="url-input-section">
-			<label class="url-label" class:dark={isDark}>End URL</label>
+			<label for="end-url" class="url-label" class:dark={isDark}>End URL</label>
 			<div class="url-input-wrapper" class:dark={isDark}>
 				<input
+					id="end-url"
 					type="text"
 					bind:value={endUrl}
 					on:keypress={(e) => handleKeyDown(e, 'end')}

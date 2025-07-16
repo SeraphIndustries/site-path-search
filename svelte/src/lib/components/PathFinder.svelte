@@ -18,14 +18,14 @@
 	}
 
 	function calculateNodePosition(level: number, index: number): { x: number; y: number } {
-		const baseX = 100;
-		const baseY = 100;
+		const centerX = 5000;
+		const centerY = 5000;
 		const levelSpacing = 300;
 		const nodeSpacing = 200;
 
 		return {
-			x: baseX + level * levelSpacing,
-			y: baseY + index * nodeSpacing
+			x: centerX + level * levelSpacing,
+			y: centerY + index * nodeSpacing
 		};
 	}
 
@@ -43,7 +43,9 @@
 			error: '',
 			isLoading: true,
 			level: 0,
-			position
+			position,
+			isStartNode: true,
+			isEndNode: false
 		};
 
 		pathState.nodes.set(nodeId, node);
@@ -77,7 +79,9 @@
 			error: '',
 			isLoading: true,
 			level: 0,
-			position
+			position,
+			isStartNode: false,
+			isEndNode: true
 		};
 
 		pathState.nodes.set(nodeId, node);
@@ -123,7 +127,9 @@
 			isLoading: true,
 			parentId: parentNodeId,
 			level,
-			position
+			position,
+			isStartNode: false,
+			isEndNode: false
 		};
 
 		pathState.nodes.set(nodeId, node);
