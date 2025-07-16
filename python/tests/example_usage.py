@@ -3,10 +3,16 @@ Example usage of the Website Screenshot Service.
 This script demonstrates various ways to use the service.
 """
 
+import sys
+import os
+
+# Add the parent directory to Python path so we can import from packages
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 import base64
 from pathlib import Path
-from website_screenshot_service import WebsiteScreenshotService, ScreenshotAPI
+from services.website_screenshot_service import WebsiteScreenshotService, ScreenshotAPI
 
 
 async def example_basic_screenshot():

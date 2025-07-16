@@ -235,8 +235,8 @@ __marimo__/
 **/*storybook.log
 **/storybook-static
 
-python/test_cache/
-python/screenshot_cache/
-python/example_cache/
+**/test_cache/
+**/screenshot_cache/
+**/example_cache/
 
 *.jpg

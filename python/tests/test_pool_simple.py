@@ -3,9 +3,15 @@
 Simple test for browser pool functionality.
 """
 
+import sys
+import os
+
+# Add the parent directory to Python path so we can import from packages
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 import time
-from website_screenshot_service import (
+from services.website_screenshot_service import (
     get_browser_pool,
     shutdown_browser_pool,
     ScreenshotAPI,

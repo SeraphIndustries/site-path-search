@@ -13,14 +13,14 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
-from sitepage_link_finder import SiteLinkFinder
-from website_screenshot_service import ScreenshotAPI
+from services.sitepage_link_finder import SiteLinkFinder
+from services.website_screenshot_service import ScreenshotAPI
 from typing import List, Optional
 from contextlib import asynccontextmanager
 import base64
 
 # Initialize screenshot API with browser pooling
-screenshot_cache_dir = "./screenshot_cache"
+screenshot_cache_dir = "./cache/screenshot_cache"
 screenshot_max_cache_size = 100
 screenshot_pool_size = 3  # Number of browser instances to maintain in pool
 
@@ -28,7 +28,10 @@ screenshot_pool_size = 3  # Number of browser instances to maintain in pool
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from pathlib import Path
-    from website_screenshot_service import get_browser_pool, shutdown_browser_pool
+    from services.website_screenshot_service import (
+        get_browser_pool,
+        shutdown_browser_pool,
+    )
 
     Path(screenshot_cache_dir).mkdir(exist_ok=True)
 
@@ -182,7 +185,7 @@ async def take_thumbnail(
     quality: int = Query(85, description="Image quality (1-100)"),
 ):
     try:
-        from website_screenshot_service import WebsiteScreenshotService
+        from services.website_screenshot_service import WebsiteScreenshotService
 
         async with WebsiteScreenshotService() as service:
             screenshot_bytes = await service.take_thumbnail(
@@ -201,7 +204,7 @@ async def take_full_page_screenshot(
     quality: int = Query(90, description="Image quality (1-100)"),
 ):
     try:
-        from website_screenshot_service import WebsiteScreenshotService
+        from services.website_screenshot_service import WebsiteScreenshotService
 
         async with WebsiteScreenshotService() as service:
             screenshot_bytes = await service.take_full_page_screenshot(
@@ -215,7 +218,7 @@ async def take_full_page_screenshot(
 
 @app.get("/health")
 async def health_check():
-    from website_screenshot_service import get_browser_pool
+    from services.website_screenshot_service import get_browser_pool
 
     try:
         pool = await get_browser_pool(screenshot_pool_size)

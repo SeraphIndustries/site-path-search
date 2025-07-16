@@ -3,10 +3,15 @@
 Test script for the website screenshot service to verify Windows asyncio cleanup.
 """
 
+import sys
+import os
+
+# Add the parent directory to Python path so we can import from packages
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import asyncio
 import platform
-import sys
-from website_screenshot_service import WebsiteScreenshotService, ScreenshotAPI
+from services.website_screenshot_service import WebsiteScreenshotService, ScreenshotAPI
 
 
 async def test_screenshot_service():
