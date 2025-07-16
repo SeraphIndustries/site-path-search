@@ -153,7 +153,7 @@ class SiteLinkFinder:
     def print_summary(self) -> None:
         """Print a formatted summary of all links."""
         summary = self.get_summary()
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"Main text links: {summary['main_text_links']}")
         print(
             f"\tImage links within main text: {summary['image_links_within_main_text']}"
