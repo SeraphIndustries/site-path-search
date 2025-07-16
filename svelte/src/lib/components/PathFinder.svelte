@@ -18,14 +18,14 @@
 	}
 
 	function calculateNodePosition(level: number, index: number): { x: number; y: number } {
-		const centerX = 5000;
-		const centerY = 5000;
-		const levelSpacing = 300;
-		const nodeSpacing = 200;
+		const baseX = 200;
+		const baseY = 200;
+		const levelSpacing = 350;
+		const nodeSpacing = 250;
 
 		return {
-			x: centerX + level * levelSpacing,
-			y: centerY + index * nodeSpacing
+			x: baseX + level * levelSpacing,
+			y: baseY + index * nodeSpacing
 		};
 	}
 
@@ -42,6 +42,7 @@
 			linkSummary: null,
 			error: '',
 			isLoading: true,
+			parentId: 'blank-start', // Connect to blank start node
 			level: 0,
 			position,
 			isStartNode: true,
@@ -78,6 +79,7 @@
 			linkSummary: null,
 			error: '',
 			isLoading: true,
+			parentId: 'blank-end', // Connect to blank end node
 			level: 0,
 			position,
 			isStartNode: false,

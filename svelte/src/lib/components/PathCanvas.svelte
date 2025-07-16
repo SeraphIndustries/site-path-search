@@ -1,5 +1,6 @@
 <script lang="ts">
 	import PathNode from './PathNode.svelte';
+	import WebsitePreview from './WebsitePreview.svelte';
 	import type { PathState, PathNode as PathNodeType } from '$lib/types/linkAnalysis';
 
 	export let pathState: PathState;
@@ -77,17 +78,24 @@
 		const newZoom = Math.max(minZoom, Math.min(maxZoom, zoom * delta));
 
 		if (newZoom !== zoom) {
-			// Calculate zoom center point
+			// Get the canvas container bounds
 			const rect = canvasContainer.getBoundingClientRect();
-			const centerX = event.clientX - rect.left;
-			const centerY = event.clientY - rect.top;
 
-			// Adjust offset to zoom towards mouse position
-			const zoomRatio = newZoom / zoom;
-			canvasOffset.x = centerX - (centerX - canvasOffset.x) * zoomRatio;
-			canvasOffset.y = centerY - (centerY - canvasOffset.y) * zoomRatio;
+			// Calculate mouse position relative to the canvas container
+			const mouseX = event.clientX - rect.left;
+			const mouseY = event.clientY - rect.top;
 
+			// Calculate the world position of the mouse before zoom
+			const worldMouseX = (mouseX - canvasOffset.x) / zoom;
+			const worldMouseY = (mouseY - canvasOffset.y) / zoom;
+
+			// Update zoom
 			zoom = newZoom;
+
+			// Calculate new offset to keep mouse position fixed
+			canvasOffset.x = mouseX - worldMouseX * zoom;
+			canvasOffset.y = mouseY - worldMouseY * zoom;
+
 			updateCanvasTransform();
 		}
 	}
@@ -113,7 +121,8 @@
 	}
 
 	function resetView() {
-		canvasOffset = { x: 0, y: 0 };
+		// Center the view on the canvas area where nodes are likely to be
+		canvasOffset = { x: 50, y: 50 };
 		zoom = 1;
 		updateCanvasTransform();
 	}
@@ -134,6 +143,64 @@
 
 	$: nodes = Array.from(pathState.nodes.values());
 	$: selectedNode = pathState.selectedNodeId ? pathState.nodes.get(pathState.selectedNodeId) : null;
+
+	// Create blank start and end nodes
+	$: blankStartNode = {
+		id: 'blank-start',
+		url: 'Enter start URL',
+		linkSummary: null,
+		error: '',
+		isLoading: false,
+		level: -1,
+		position: { x: 100, y: 100 },
+		isStartNode: true,
+		isEndNode: false
+	};
+
+	$: blankEndNode = {
+		id: 'blank-end',
+		url: 'Enter end URL',
+		linkSummary: null,
+		error: '',
+		isLoading: false,
+		level: -1,
+		position: { x: 400, y: 100 },
+		isStartNode: false,
+		isEndNode: true
+	};
+
+	// Calculate preview positions for connections
+	$: connectionPreviews = nodes
+		.filter((node) => node.parentId)
+		.map((node) => {
+			let parentPosition: { x: number; y: number };
+
+			if (node.parentId === 'blank-start') {
+				parentPosition = blankStartNode.position;
+			} else if (node.parentId === 'blank-end') {
+				parentPosition = blankEndNode.position;
+			} else {
+				const parentNode = pathState.nodes.get(node.parentId!);
+				if (!parentNode) return null;
+				parentPosition = parentNode.position;
+			}
+
+			// Calculate midpoint of the connection
+			const midX = (parentPosition.x + 150 + node.position.x) / 2;
+			const midY = (parentPosition.y + 75 + node.position.y + 75) / 2;
+
+			return {
+				url: node.url,
+				position: { x: midX, y: midY },
+				isVisible: true
+			};
+		})
+		.filter(
+			(
+				preview
+			): preview is { url: string; position: { x: number; y: number }; isVisible: boolean } =>
+				preview !== null
+		);
 </script>
 
 <div class="canvas-wrapper" class:dark={isDark}>
@@ -154,17 +221,42 @@
 			<svg class="connections" width="100%" height="100%">
 				{#each nodes as node}
 					{#if node.parentId}
-						{@const parentNode = pathState.nodes.get(node.parentId)}
-						{#if parentNode}
+						{#if node.parentId === 'blank-start'}
+							<!-- Connection from blank start node -->
 							<line
-								x1={parentNode.position.x + 150}
-								y1={parentNode.position.y + 75}
+								x1={blankStartNode.position.x + 150}
+								y1={blankStartNode.position.y + 75}
 								x2={node.position.x}
 								y2={node.position.y + 75}
-								stroke={isDark ? '#9ca3af' : '#6b7280'}
-								stroke-width="2"
-								marker-end="url(#arrowhead)"
+								stroke={isDark ? '#3b82f6' : '#1d4ed8'}
+								stroke-width="3"
+								marker-end="url(#arrowhead-start)"
 							/>
+						{:else if node.parentId === 'blank-end'}
+							<!-- Connection from blank end node -->
+							<line
+								x1={blankEndNode.position.x + 150}
+								y1={blankEndNode.position.y + 75}
+								x2={node.position.x}
+								y2={node.position.y + 75}
+								stroke={isDark ? '#10b981' : '#047857'}
+								stroke-width="3"
+								marker-end="url(#arrowhead-end)"
+							/>
+						{:else}
+							<!-- Regular connections between nodes -->
+							{@const parentNode = pathState.nodes.get(node.parentId)}
+							{#if parentNode}
+								<line
+									x1={parentNode.position.x + 150}
+									y1={parentNode.position.y + 75}
+									x2={node.position.x}
+									y2={node.position.y + 75}
+									stroke={isDark ? '#9ca3af' : '#6b7280'}
+									stroke-width="2"
+									marker-end="url(#arrowhead)"
+								/>
+							{/if}
 						{/if}
 					{/if}
 				{/each}
@@ -179,8 +271,46 @@
 					>
 						<polygon points="0 0, 10 3.5, 0 7" fill={isDark ? '#9ca3af' : '#6b7280'} />
 					</marker>
+					<marker
+						id="arrowhead-start"
+						markerWidth="12"
+						markerHeight="8"
+						refX="10"
+						refY="4"
+						orient="auto"
+					>
+						<polygon points="0 0, 12 4, 0 8" fill={isDark ? '#3b82f6' : '#1d4ed8'} />
+					</marker>
+					<marker
+						id="arrowhead-end"
+						markerWidth="12"
+						markerHeight="8"
+						refX="10"
+						refY="4"
+						orient="auto"
+					>
+						<polygon points="0 0, 12 4, 0 8" fill={isDark ? '#10b981' : '#047857'} />
+					</marker>
 				</defs>
 			</svg>
+
+			<!-- Blank start and end nodes -->
+			<PathNode
+				node={blankStartNode}
+				{isDark}
+				isSelected={false}
+				onSelect={() => {}}
+				onLinkClick={() => {}}
+				onPositionUpdate={() => {}}
+			/>
+			<PathNode
+				node={blankEndNode}
+				{isDark}
+				isSelected={false}
+				onSelect={() => {}}
+				onLinkClick={() => {}}
+				onPositionUpdate={() => {}}
+			/>
 
 			<!-- Path nodes -->
 			{#each nodes as node (node.id)}
@@ -192,6 +322,16 @@
 					onLinkClick={(linkUrl: string) => onLinkClick(node.id, linkUrl)}
 					onPositionUpdate={(position: { x: number; y: number }) =>
 						onNodePositionUpdate(node.id, position)}
+				/>
+			{/each}
+
+			<!-- Website previews along connections -->
+			{#each connectionPreviews as preview}
+				<WebsitePreview
+					url={preview.url}
+					{isDark}
+					position={preview.position}
+					isVisible={preview.isVisible}
 				/>
 			{/each}
 		</div>
@@ -251,11 +391,11 @@
 	}
 
 	.path-canvas {
-		width: 10000px;
-		height: 10000px;
+		width: 2000px;
+		height: 2000px;
 		position: absolute;
-		top: -5000px;
-		left: -5000px;
+		top: 0;
+		left: 0;
 		transition: transform 0.1s ease;
 		transform-origin: center;
 		background:

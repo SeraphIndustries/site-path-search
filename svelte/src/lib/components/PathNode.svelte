@@ -128,16 +128,26 @@
 	<div class="node-header">
 		<div class="node-title">
 			<span class="node-level" class:start-level={isStartNode} class:end-level={isEndNode}
-				>L{node.level}</span
+				>{node.level >= 0 ? `L${node.level}` : isStartNode ? 'START' : 'END'}</span
 			>
 			<span class="node-url">{node.url}</span>
 		</div>
-		<button class="expand-button" on:click|stopPropagation={toggleExpanded}>
-			{isExpanded ? '−' : '+'}
-		</button>
+		{#if node.level >= 0}
+			<button class="expand-button" on:click|stopPropagation={toggleExpanded}>
+				{isExpanded ? '−' : '+'}
+			</button>
+		{/if}
 	</div>
 
-	{#if node.isLoading}
+	{#if node.level < 0}
+		<div class="blank-node-content">
+			<span class="blank-message">
+				{isStartNode
+					? 'Click "Analyze Start URL" to begin'
+					: 'Click "Analyze End URL" to set destination'}
+			</span>
+		</div>
+	{:else if node.isLoading}
 		<div class="loading-state">
 			<div class="loading-spinner"></div>
 			<span>Analyzing...</span>
@@ -547,5 +557,20 @@
 	.path-node.dark .more-links:hover {
 		background: #4b5563;
 		color: #f9fafb;
+	}
+
+	.blank-node-content {
+		padding: 1rem;
+		text-align: center;
+	}
+
+	.blank-message {
+		font-size: 0.875rem;
+		color: #6b7280;
+		font-style: italic;
+	}
+
+	.path-node.dark .blank-message {
+		color: #9ca3af;
 	}
 </style>

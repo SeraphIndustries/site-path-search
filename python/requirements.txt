@@ -22,7 +22,9 @@ mypy_extensions==1.1.0
 nodeenv==1.9.1
 packaging==25.0
 pathspec==0.12.1
+pillow==11.0.0
 platformdirs==4.3.8
+playwright==1.48.0
 pre_commit==4.2.0
 pycodestyle==2.14.0
 pydantic==2.11.7
