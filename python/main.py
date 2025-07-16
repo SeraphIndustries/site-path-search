@@ -19,21 +19,24 @@ from typing import List, Optional
 from contextlib import asynccontextmanager
 import base64
 
-# Initialize screenshot API - we'll create instances per request to avoid Windows subprocess issues
+# Initialize screenshot API with browser pooling
 screenshot_cache_dir = "./screenshot_cache"
 screenshot_max_cache_size = 100
+screenshot_pool_size = 3  # Number of browser instances to maintain in pool
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan event handler for startup and shutdown."""
-    # Startup
     from pathlib import Path
+    from website_screenshot_service import get_browser_pool, shutdown_browser_pool
 
     Path(screenshot_cache_dir).mkdir(exist_ok=True)
+
+    await get_browser_pool(screenshot_pool_size)
+
     yield
-    # Shutdown - simplified to avoid recursion issues
-    # The event loop will handle cleanup automatically
+
+    await shutdown_browser_pool()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -92,33 +95,32 @@ async def take_screenshot(request: ScreenshotRequest):
     Take a screenshot of a website and return it as base64.
     """
     try:
-        # Create a new ScreenshotAPI instance for each request to avoid Windows subprocess issues
         api = ScreenshotAPI(
-            cache_dir=screenshot_cache_dir, max_cache_size=screenshot_max_cache_size
+            cache_dir=screenshot_cache_dir,
+            max_cache_size=screenshot_max_cache_size,
+            pool_size=screenshot_pool_size,
         )
-        try:
-            screenshot_bytes = await api.get_screenshot(
-                url=request.url,
-                width=request.width or 200,
-                height=request.height or 150,
-                full_page=request.full_page or False,
-                quality=request.quality or 90,
-                format=request.format or "jpeg",
-                use_cache=request.use_cache or True,
-            )
 
-            image_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
+        screenshot_bytes = await api.get_screenshot(
+            url=request.url,
+            width=request.width or 200,
+            height=request.height or 150,
+            full_page=request.full_page or False,
+            quality=request.quality or 90,
+            format=request.format or "jpeg",
+            use_cache=request.use_cache or True,
+        )
 
-            return ScreenshotResponse(
-                url=request.url,
-                image_base64=image_base64,
-                width=request.width or 200,
-                height=request.height or 150,
-                format=request.format or "jpeg",
-                size_bytes=len(screenshot_bytes),
-            )
-        finally:
-            await api.cleanup()
+        image_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
+
+        return ScreenshotResponse(
+            url=request.url,
+            image_base64=image_base64,
+            width=request.width or 200,
+            height=request.height or 150,
+            format=request.format or "jpeg",
+            size_bytes=len(screenshot_bytes),
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -137,25 +139,24 @@ async def take_screenshot_get(
     Take a screenshot of a website and return it as an image response.
     """
     try:
-        # Create a new ScreenshotAPI instance for each request to avoid Windows subprocess issues
         api = ScreenshotAPI(
-            cache_dir=screenshot_cache_dir, max_cache_size=screenshot_max_cache_size
+            cache_dir=screenshot_cache_dir,
+            max_cache_size=screenshot_max_cache_size,
+            pool_size=screenshot_pool_size,
         )
-        try:
-            screenshot_bytes = await api.get_screenshot(
-                url=url,
-                width=width,
-                height=height,
-                full_page=full_page,
-                quality=quality,
-                format=format,
-                use_cache=use_cache,
-            )
 
-            content_type = f"image/{format}"
-            return Response(content=screenshot_bytes, media_type=content_type)
-        finally:
-            await api.cleanup()
+        screenshot_bytes = await api.get_screenshot(
+            url=url,
+            width=width,
+            height=height,
+            full_page=full_page,
+            quality=quality,
+            format=format,
+            use_cache=use_cache,
+        )
+
+        content_type = f"image/{format}"
+        return Response(content=screenshot_bytes, media_type=content_type)
     except Exception as e:
         import logging
 
@@ -214,7 +215,23 @@ async def take_full_page_screenshot(
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "site-path-search-api"}
+    from website_screenshot_service import get_browser_pool
+
+    try:
+        pool = await get_browser_pool(screenshot_pool_size)
+        pool_health = await pool.health_check()
+
+        return {
+            "status": "healthy",
+            "service": "site-path-search-api",
+            "browser_pool": pool_health,
+        }
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "service": "site-path-search-api",
+            "error": str(e),
+        }
 
 
 if __name__ == "__main__":

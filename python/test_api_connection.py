@@ -15,7 +15,6 @@ TEST_URL = "https://www.noahpinion.blog/p/tokyo-is-the-new-paris"
 
 
 def test_health_endpoint():
-    """Test the health endpoint."""
     print("🏥 Testing health endpoint...")
     try:
         response = requests.get(f"{API_BASE_URL}/health", timeout=5)
@@ -32,7 +31,6 @@ def test_health_endpoint():
 
 
 def test_links_endpoint():
-    """Test the links analysis endpoint."""
     print("\n🔗 Testing links endpoint...")
     try:
         response = requests.get(f"{API_BASE_URL}/links?url={TEST_URL}", timeout=10)
@@ -52,7 +50,6 @@ def test_links_endpoint():
 
 
 def test_screenshot_endpoint():
-    """Test the screenshot endpoint."""
     print("\n📸 Testing screenshot endpoint...")
     try:
         response = requests.get(
@@ -80,7 +77,6 @@ def test_screenshot_endpoint():
 
 
 def test_screenshot_thumbnail():
-    """Test the thumbnail endpoint."""
     print("\n🖼️  Testing thumbnail endpoint...")
     try:
         response = requests.get(
@@ -104,7 +100,6 @@ def test_screenshot_thumbnail():
 
 
 def test_cors_headers():
-    """Test CORS headers."""
     print("\n🌐 Testing CORS headers...")
     try:
         response = requests.options(f"{API_BASE_URL}/health", timeout=5)

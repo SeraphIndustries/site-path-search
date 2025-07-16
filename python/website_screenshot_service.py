@@ -10,9 +10,11 @@ import logging
 import platform
 import sys
 from pathlib import Path
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, List
 from urllib.parse import urlparse
 import time
+from collections import deque
+import threading
 
 if platform.system() == "Windows":
     if sys.version_info >= (3, 8):
@@ -33,6 +35,217 @@ except ImportError:
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class BrowserPool:
+    """
+    A pool of pre-created browser instances for efficient screenshot taking.
+    """
+
+    def __init__(self, pool_size: int = 3, headless: bool = True, timeout: int = 30000):
+        """
+        Initialize the browser pool.
+
+        Args:
+            pool_size (int): Number of browser instances to maintain in the pool
+            headless (bool): Whether to run browsers in headless mode
+            timeout (int): Timeout for page operations in milliseconds
+        """
+        self.pool_size = pool_size
+        self.headless = headless
+        self.timeout = timeout
+        self.browsers: deque = deque()
+        self.playwright = None
+        self._lock = asyncio.Lock()
+        self._initialized = False
+        self._shutdown = False
+
+    async def initialize(self):
+        """Initialize the browser pool with pre-created browser instances."""
+        if self._initialized:
+            return
+
+        async with self._lock:
+            if self._initialized:
+                return
+
+            try:
+                logger.info(
+                    f"Initializing browser pool with {self.pool_size} instances..."
+                )
+                self.playwright = await async_playwright().start()
+
+                # Create browser instances
+                for i in range(self.pool_size):
+                    try:
+                        browser = await self.playwright.chromium.launch(
+                            headless=self.headless,
+                            args=[
+                                "--no-sandbox",
+                                "--disable-setuid-sandbox",
+                                "--disable-dev-shm-usage",
+                                "--disable-accelerated-2d-canvas",
+                                "--no-first-run",
+                                "--no-zygote",
+                                "--disable-gpu",
+                                "--disable-web-security",
+                                "--disable-features=VizDisplayCompositor",
+                            ],
+                        )
+                        self.browsers.append(browser)
+                        logger.info(f"Created browser instance {i+1}/{self.pool_size}")
+                    except Exception as e:
+                        logger.error(f"Failed to create browser instance {i+1}: {e}")
+                        # Try Firefox as fallback
+                        try:
+                            browser = await self.playwright.firefox.launch(
+                                headless=self.headless
+                            )
+                            self.browsers.append(browser)
+                            logger.info(
+                                f"Created Firefox browser instance {i+1}/{self.pool_size}"
+                            )
+                        except Exception as e2:
+                            logger.error(
+                                f"Failed to create Firefox browser instance {i+1}: {e2}"
+                            )
+
+                self._initialized = True
+                logger.info(
+                    f"Browser pool initialized with {len(self.browsers)} instances"
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to initialize browser pool: {e}")
+                raise
+
+    async def get_browser(self) -> Optional[Browser]:
+        """Get a browser instance from the pool."""
+        if not self._initialized:
+            await self.initialize()
+
+        if self._shutdown:
+            return None
+
+        async with self._lock:
+            if self.browsers:
+                browser = self.browsers.popleft()
+                logger.info(
+                    f"Retrieved browser from pool. {len(self.browsers)} remaining"
+                )
+                return browser
+            else:
+                logger.warning("No browsers available in pool")
+                return None
+
+    async def return_browser(self, browser: Browser):
+        """Return a browser instance to the pool."""
+        if self._shutdown:
+            try:
+                await browser.close()
+            except:
+                pass
+            return
+
+        async with self._lock:
+            if len(self.browsers) < self.pool_size:
+                self.browsers.append(browser)
+                logger.info(f"Returned browser to pool. {len(self.browsers)} total")
+            else:
+                # Pool is full, close the browser
+                try:
+                    await browser.close()
+                    logger.info("Pool full, closed browser")
+                except Exception as e:
+                    logger.warning(f"Failed to close browser: {e}")
+
+    async def shutdown(self):
+        """Shutdown the browser pool and close all browsers."""
+        if self._shutdown:
+            return
+
+        self._shutdown = True
+
+        try:
+            async with self._lock:
+                logger.info("Shutting down browser pool...")
+
+                # Close all browsers in the pool
+                browsers_to_close = []
+                while self.browsers:
+                    try:
+                        browser = self.browsers.popleft()
+                        browsers_to_close.append(browser)
+                    except Exception as e:
+                        logger.warning(f"Error removing browser from pool: {e}")
+
+                # Close browsers outside the lock to avoid deadlocks
+                for browser in browsers_to_close:
+                    try:
+                        await browser.close()
+                    except Exception as e:
+                        logger.warning(f"Failed to close browser during shutdown: {e}")
+
+                # Stop playwright
+                if self.playwright:
+                    try:
+                        await self.playwright.stop()
+                    except Exception as e:
+                        logger.warning(f"Failed to stop playwright during shutdown: {e}")
+
+                logger.info("Browser pool shutdown complete")
+        except Exception as e:
+            logger.error(f"Error during browser pool shutdown: {e}")
+            # Try to stop playwright even if there was an error
+            if self.playwright:
+                try:
+                    await self.playwright.stop()
+                except:
+                    pass
+
+    async def health_check(self) -> Dict[str, Any]:
+        """Check the health of the browser pool."""
+        return {
+            "initialized": self._initialized,
+            "shutdown": self._shutdown,
+            "pool_size": self.pool_size,
+            "available_browsers": len(self.browsers),
+            "total_browsers": len(self.browsers),
+        }
+
+
+# Global browser pool instance
+_browser_pool: Optional[BrowserPool] = None
+_pool_lock = asyncio.Lock()
+
+
+async def get_browser_pool(pool_size: int = 3) -> BrowserPool:
+    """Get or create the global browser pool instance."""
+    global _browser_pool
+
+    async with _pool_lock:
+        if _browser_pool is None:
+            _browser_pool = BrowserPool(pool_size=pool_size)
+            await _browser_pool.initialize()
+        elif _browser_pool.pool_size != pool_size:
+            # If pool size changed, shutdown old pool and create new one
+            logger.info(
+                f"Pool size changed from {_browser_pool.pool_size} to {pool_size}, recreating pool"
+            )
+            await _browser_pool.shutdown()
+            _browser_pool = BrowserPool(pool_size=pool_size)
+            await _browser_pool.initialize()
+        return _browser_pool
+
+
+async def shutdown_browser_pool():
+    """Shutdown the global browser pool."""
+    global _browser_pool
+
+    async with _pool_lock:
+        if _browser_pool:
+            await _browser_pool.shutdown()
+            _browser_pool = None
 
 
 class WebsiteScreenshotService:
@@ -254,7 +467,7 @@ class WebsiteScreenshotService:
         self, url: str, width: int = 1200, **kwargs
     ) -> bytes:
         """
-        Take a full-page screenshot.
+        Take a full page screenshot.
 
         Args:
             url (str): The URL to screenshot
@@ -262,7 +475,7 @@ class WebsiteScreenshotService:
             **kwargs: Additional arguments passed to take_screenshot
 
         Returns:
-            bytes: Full page screenshot data
+            bytes: Full page screenshot image data
         """
         return await self.take_screenshot(url, width=width, full_page=True, **kwargs)
 
@@ -305,19 +518,26 @@ class WebsiteScreenshotService:
 
 class ScreenshotAPI:
     """
-    API wrapper for the screenshot service with caching and rate limiting.
+    API wrapper for the screenshot service with caching and browser pooling.
     """
 
-    def __init__(self, cache_dir: Optional[str] = None, max_cache_size: int = 100):
+    def __init__(
+        self,
+        cache_dir: Optional[str] = None,
+        max_cache_size: int = 100,
+        pool_size: int = 3,
+    ):
         """
         Initialize the screenshot API.
 
         Args:
             cache_dir (str): Directory to cache screenshots
             max_cache_size (int): Maximum number of cached screenshots
+            pool_size (int): Number of browser instances in the pool
         """
         self.cache_dir = Path(cache_dir) if cache_dir else Path("./screenshot_cache")
         self.max_cache_size = max_cache_size
+        self.pool_size = pool_size
         self.cache_dir.mkdir(exist_ok=True)
 
     async def get_screenshot(
@@ -329,7 +549,7 @@ class ScreenshotAPI:
         **kwargs,
     ) -> bytes:
         """
-        Get a screenshot, using cache if available.
+        Get a screenshot, using cache if available and browser pool for efficiency.
 
         Args:
             url (str): The URL to screenshot
@@ -347,15 +567,33 @@ class ScreenshotAPI:
                 logger.info(f"Using cached screenshot for {url}")
                 return cached
 
-        # Create a new service instance for each request to avoid Windows subprocess issues
-        service = None
+        # Get browser from pool
+        browser = None
+        pool = None
         try:
-            service = WebsiteScreenshotService()
-            await service.start()
+            pool = await get_browser_pool(self.pool_size)
+            browser = await pool.get_browser()
 
-            screenshot = await service.take_screenshot(
-                url, width=width, height=height, **kwargs
-            )
+            if not browser:
+                logger.warning(
+                    "No browser available from pool, falling back to new instance"
+                )
+                # Fallback to creating a new service instance
+                service = WebsiteScreenshotService()
+                await service.start()
+                screenshot = await service.take_screenshot(
+                    url, width=width, height=height, **kwargs
+                )
+                await service.stop()
+            else:
+                # Use browser from pool
+                logger.debug(f"Using browser from pool for {url}")
+                screenshot = await self._take_screenshot_with_browser(
+                    browser, url, width, height, **kwargs
+                )
+                # Return browser to pool
+                await pool.return_browser(browser)
+                browser = None  # Prevent cleanup in finally block
 
             if use_cache:
                 self._cache_screenshot(url, width, height, screenshot)
@@ -366,12 +604,67 @@ class ScreenshotAPI:
             logger.error(f"Failed to get screenshot for {url}: {e}")
             return self._generate_placeholder(url, width, height)
         finally:
-            if service:
-                await service.stop()
+            # Cleanup browser if it wasn't returned to pool
+            if browser and pool:
+                try:
+                    await pool.return_browser(browser)
+                except Exception as e:
+                    logger.warning(f"Failed to return browser to pool: {e}")
+                    try:
+                        await browser.close()
+                    except Exception as close_error:
+                        logger.warning(f"Failed to close browser: {close_error}")
+            elif browser:
+                try:
+                    await browser.close()
+                except Exception as e:
+                    logger.warning(f"Failed to close browser: {e}")
+
+    async def _take_screenshot_with_browser(
+        self, browser: Browser, url: str, width: int, height: int, **kwargs
+    ) -> bytes:
+        """Take a screenshot using a provided browser instance."""
+        page = await browser.new_page()
+
+        try:
+            await page.set_viewport_size({"width": width, "height": height})
+            await page.set_extra_http_headers(
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+            )
+
+            logger.info(f"Navigating to {url}")
+            await page.goto(url, timeout=30000, wait_until="networkidle")
+
+            wait_time = kwargs.get("wait_time", 2000)
+            if wait_time > 0:
+                await page.wait_for_timeout(wait_time)
+
+            logger.info("Taking screenshot...")
+            screenshot_options = {
+                "full_page": kwargs.get("full_page", False),
+                "quality": kwargs.get("quality", 90),
+                "type": kwargs.get("format", "jpeg"),
+            }
+
+            screenshot_bytes = await page.screenshot(**screenshot_options)
+            logger.info(f"Screenshot taken successfully ({len(screenshot_bytes)} bytes)")
+
+            return screenshot_bytes
+
+        except Exception as e:
+            logger.error(f"Error taking screenshot of {url}: {str(e)}")
+            return self._generate_placeholder(url, width, height)
+        finally:
+            try:
+                await page.close()
+            except Exception as close_error:
+                logger.warning(f"Failed to close page: {close_error}")
 
     async def cleanup(self):
-        """Cleanup method for compatibility - no longer needed since we create new instances per request."""
-        pass
+        """Cleanup method - now handles browser pool shutdown."""
+        await shutdown_browser_pool()
 
     def _get_cache_key(self, url: str, width: int, height: int) -> str:
         import hashlib
@@ -476,7 +769,7 @@ if __name__ == "__main__":
         screenshot = await api.get_screenshot(url, width=300, height=200)
         print(f"API screenshot size: {len(screenshot)} bytes")
 
-        # Cleanup is now handled automatically per request
+        # Cleanup browser pool
         await api.cleanup()
 
     # Run the example
