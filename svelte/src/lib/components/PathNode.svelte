@@ -9,6 +9,7 @@
 	export let onLinkClick: (linkUrl: string) => void;
 	export let onPositionUpdate: (position: { x: number; y: number }) => void;
 	export let isDark: boolean = false;
+	export let isInPath: boolean = false;
 
 	let isExpanded = false;
 	let isDragging = false;
@@ -111,7 +112,7 @@
 </script>
 
 <div
-	class="path-node"
+	class="path-node {isInPath ? 'in-path' : 'not-in-path'}"
 	class:selected={isSelected}
 	class:expanded={isExpanded}
 	class:dark={isDark}
@@ -203,6 +204,18 @@
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 		cursor: move;
 		transition: all 0.2s ease;
+		z-index: 2;
+		opacity: 0.3;
+		filter: grayscale(0.5);
+	}
+	.path-node.not-in-path {
+		opacity: 0.3;
+		filter: grayscale(0.5);
+	}
+	.path-node.in-path {
+		opacity: 1;
+		box-shadow: 0 0 0 3px #10b98144;
+		border: 2px solid #10b981;
 		z-index: 2;
 	}
 

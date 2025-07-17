@@ -352,6 +352,7 @@
 			onNodeSelect={selectNode}
 			onLinkClick={analyzeLinkFromNode}
 			onNodePositionUpdate={updateNodePosition}
+			autonomousProgress={{ visited: [], currentPath: [], foundPath: [] }}
 		/>
 	{/if}
 
@@ -364,31 +365,56 @@
 			onAnalyzeStart={startAutonomousPath}
 			onAnalyzeEnd={startAutonomousPath}
 		/>
-		<button on:click={startAutonomousPath} disabled={isAutonomousRunning}
-			>Start Autonomous Path</button
-		>
-		<button on:click={clearPath} disabled={isAutonomousRunning}>Clear</button>
+		<div class="autonomous-controls">
+			<button
+				class="start-autonomous-button"
+				on:click={startAutonomousPath}
+				disabled={isAutonomousRunning}
+			>
+				{isAutonomousRunning ? 'Finding Path...' : 'Start Autonomous Path'}
+			</button>
+		</div>
+
 		{#if isAutonomousRunning}
-			<p>Autonomous path finding in progress...</p>
+			<div class="progress-indicator">
+				<p>🔍 Autonomous path finding in progress...</p>
+				<p class="progress-stats">
+					Visited: {autonomousProgress.visited.length} URLs
+				</p>
+			</div>
 		{/if}
+
 		{#if autonomousError}
-			<p class="error">{autonomousError}</p>
+			<div class="error-message">
+				<p>❌ {autonomousError}</p>
+			</div>
 		{/if}
+
 		{#if autonomousProgress.foundPath.length > 0}
-			<p>Path found:</p>
-			<ol>
-				{#each autonomousProgress.foundPath as url}
-					<li>{url}</li>
-				{/each}
-			</ol>
-		{:else if !isAutonomousRunning && pathState.startUrl && pathState.endUrl}
-			<p>No path found.</p>
+			<div class="path-found-section">
+				<h3 class="path-found-title">🎯 Path Found!</h3>
+				<div class="path-steps">
+					{#each autonomousProgress.foundPath as url, index}
+						<div class="path-step">
+							<span class="step-number">{index + 1}</span>
+							<span class="step-url">{url}</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{:else if !isAutonomousRunning && pathState.startUrl && pathState.endUrl && autonomousProgress.visited.length > 0}
+			<div class="no-path-found">
+				<p>❌ No path found between the specified URLs.</p>
+				<p class="search-stats">Searched {autonomousProgress.visited.length} URLs</p>
+			</div>
 		{/if}
+
 		<PathCanvas
 			{pathState}
 			onNodeSelect={selectNode}
 			onLinkClick={() => {}}
 			onNodePositionUpdate={updateNodePosition}
+			{autonomousProgress}
 		/>
 	{/if}
 
@@ -424,5 +450,108 @@
 
 	.clear-button:hover {
 		background: #dc2626;
+	}
+
+	.autonomous-controls {
+		margin-top: 1rem;
+		display: flex;
+		justify-content: center;
+	}
+
+	.start-autonomous-button {
+		padding: 0.75rem 1.5rem;
+		background: #4f46e5;
+		color: white;
+		border: none;
+		border-radius: 0.5rem;
+		font-size: 1rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background-color 0.2s;
+	}
+
+	.start-autonomous-button:hover:not(:disabled) {
+		background: #4338ca;
+	}
+
+	.start-autonomous-button:disabled {
+		background: #d1d5db;
+		color: #6b7280;
+		cursor: not-allowed;
+	}
+
+	.progress-indicator {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #f3f4f6;
+		border-radius: 0.5rem;
+		text-align: center;
+	}
+
+	.progress-stats {
+		margin-top: 0.5rem;
+		font-size: 0.9rem;
+		color: #4b5563;
+	}
+
+	.error-message {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #fef3c7;
+		border: 1px solid #fcd34d;
+		border-radius: 0.5rem;
+		color: #d97706;
+	}
+
+	.path-found-section {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #ecfdf5;
+		border: 1px solid #86efac;
+		border-radius: 0.5rem;
+	}
+
+	.path-found-title {
+		color: #065f46;
+		margin-bottom: 0.5rem;
+	}
+
+	.path-steps {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.path-step {
+		display: flex;
+		align-items: center;
+		margin-bottom: 0.25rem;
+		font-size: 0.9rem;
+		color: #374151;
+	}
+
+	.step-number {
+		margin-right: 0.5rem;
+		font-weight: 600;
+		color: #10b981;
+	}
+
+	.step-url {
+		font-family: monospace;
+	}
+
+	.no-path-found {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #fef3f2;
+		border: 1px solid #fca5a5;
+		border-radius: 0.5rem;
+		color: #991b1b;
+	}
+
+	.search-stats {
+		margin-top: 0.5rem;
+		font-size: 0.9rem;
+		color: #991b1b;
 	}
 </style>

@@ -3,10 +3,22 @@
 	import WebsitePreview from './WebsitePreview.svelte';
 	import type { PathState, PathNode as PathNodeType } from '$lib/types/linkAnalysis';
 
+	type AutonomousProgress = {
+		visited: string[];
+		currentPath: string[];
+		foundPath: string[];
+		error?: string;
+	};
+
 	export let pathState: PathState;
 	export let onNodeSelect: (nodeId: string) => void;
 	export let onLinkClick: (parentNodeId: string, linkUrl: string) => void;
 	export let onNodePositionUpdate: (nodeId: string, position: { x: number; y: number }) => void;
+	export let autonomousProgress: AutonomousProgress = {
+		visited: [],
+		currentPath: [],
+		foundPath: []
+	};
 
 	let canvasContainer: HTMLDivElement;
 	let canvasWrapper: HTMLDivElement;
@@ -175,18 +187,22 @@
 		.map((node) => {
 			let parentPosition: { x: number; y: number };
 			let parentId: string;
+			let parentUrl: string;
 
 			if (node.parentId === 'blank-start') {
 				parentPosition = blankStartNode.position;
 				parentId = 'blank-start';
+				parentUrl = blankStartNode.url;
 			} else if (node.parentId === 'blank-end') {
 				parentPosition = blankEndNode.position;
 				parentId = 'blank-end';
+				parentUrl = blankEndNode.url;
 			} else {
 				const parentNode = pathState.nodes.get(node.parentId!);
 				if (!parentNode) return null;
 				parentPosition = parentNode.position;
 				parentId = parentNode.id;
+				parentUrl = parentNode.url;
 			}
 
 			const parentWidth = 300;
@@ -238,6 +254,19 @@
 			const previewX = startX + dx * previewRatio;
 			const previewY = startY + dy * previewRatio;
 
+			// Determine if this connection is on the found path
+			let isInPath = false;
+			if (
+				autonomousProgress &&
+				autonomousProgress.foundPath &&
+				autonomousProgress.foundPath.length > 1
+			) {
+				const idx = autonomousProgress.foundPath.indexOf(parentUrl);
+				if (idx !== -1 && autonomousProgress.foundPath[idx + 1] === node.url) {
+					isInPath = true;
+				}
+			}
+
 			return {
 				nodeId: node.id,
 				parentId,
@@ -248,7 +277,8 @@
 				previewPosition: { x: previewX, y: previewY },
 				url: node.url,
 				isStartConnection: node.parentId === 'blank-start',
-				isEndConnection: node.parentId === 'blank-end'
+				isEndConnection: node.parentId === 'blank-end',
+				isInPath
 			};
 		})
 		.filter((conn): conn is NonNullable<typeof conn> => conn !== null);
@@ -279,23 +309,33 @@
 						y1={conn.startY}
 						x2={conn.endX}
 						y2={conn.endY}
-						stroke={conn.isStartConnection
-							? isDark
-								? '#3b82f6'
-								: '#1d4ed8'
-							: conn.isEndConnection
+						stroke={conn.isInPath
+							? '#065f46'
+							: conn.isStartConnection
 								? isDark
-									? '#10b981'
-									: '#047857'
-								: isDark
-									? '#9ca3af'
-									: '#6b7280'}
-						stroke-width={conn.isStartConnection || conn.isEndConnection ? '3' : '2'}
-						marker-end={conn.isStartConnection
-							? 'url(#arrowhead-start)'
-							: conn.isEndConnection
-								? 'url(#arrowhead-end)'
-								: 'url(#arrowhead)'}
+									? '#3b82f6'
+									: '#1d4ed8'
+								: conn.isEndConnection
+									? isDark
+										? '#10b981'
+										: '#047857'
+									: isDark
+										? '#9ca3af'
+										: '#6b7280'}
+						stroke-width={conn.isInPath
+							? '4'
+							: conn.isStartConnection || conn.isEndConnection
+								? '3'
+								: '2'}
+						marker-end={conn.isInPath
+							? 'url(#arrowhead-green)'
+							: conn.isStartConnection
+								? 'url(#arrowhead-start)'
+								: conn.isEndConnection
+									? 'url(#arrowhead-end)'
+									: 'url(#arrowhead)'}
+						class:arrow-in-path={conn.isInPath}
+						class:arrow-not-in-path={!conn.isInPath}
 					/>
 				{/each}
 				<defs>
@@ -332,12 +372,31 @@
 					>
 						<polygon points="0 0, 24 9, 0 18" fill={isDark ? '#10b981' : '#047857'} />
 					</marker>
+					<marker
+						id="arrowhead-green"
+						markerWidth="24"
+						markerHeight="18"
+						refX="22"
+						refY="9"
+						orient="auto"
+						markerUnits="userSpaceOnUse"
+					>
+						<polygon points="0 0, 24 9, 0 18" fill="#065f46" />
+					</marker>
 				</defs>
 			</svg>
 
 			<!-- Website previews along connections (behind nodes) -->
 			{#each connections as conn}
-				<WebsitePreview url={conn.url} {isDark} position={conn.previewPosition} isVisible={true} />
+				<WebsitePreview
+					url={conn.url}
+					{isDark}
+					position={conn.previewPosition}
+					isVisible={true}
+					isInPath={autonomousProgress &&
+						autonomousProgress.foundPath &&
+						autonomousProgress.foundPath.includes(conn.url)}
+				/>
 			{/each}
 
 			<!-- Blank start and end nodes (lowest z-index) -->
@@ -368,6 +427,9 @@
 					onLinkClick={(linkUrl: string) => onLinkClick(node.id, linkUrl)}
 					onPositionUpdate={(position: { x: number; y: number }) =>
 						onNodePositionUpdate(node.id, position)}
+					isInPath={autonomousProgress &&
+						autonomousProgress.foundPath &&
+						autonomousProgress.foundPath.includes(node.url)}
 				/>
 			{/each}
 		</div>
@@ -532,5 +594,26 @@
 
 	.zoom-level.dark {
 		color: #f9fafb;
+	}
+
+	.arrow-in-path {
+		stroke: #065f46 !important;
+		animation: pulse-green 1.2s infinite;
+		opacity: 1 !important;
+	}
+	.arrow-not-in-path {
+		opacity: 0.25;
+		transition: opacity 0.2s;
+	}
+	@keyframes pulse-green {
+		0% {
+			filter: drop-shadow(0 0 0 #10b981);
+		}
+		50% {
+			filter: drop-shadow(0 0 8px #10b981);
+		}
+		100% {
+			filter: drop-shadow(0 0 0 #10b981);
+		}
 	}
 </style>

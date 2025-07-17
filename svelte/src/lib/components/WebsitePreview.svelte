@@ -5,6 +5,7 @@
 	export let isDark: boolean = false;
 	export let position: { x: number; y: number };
 	export let isVisible: boolean = false;
+	export let isInPath: boolean = false;
 
 	let previewImage: string | null = null;
 	let isLoading = true;
@@ -58,7 +59,7 @@
 
 {#if isVisible}
 	<div
-		class="website-preview"
+		class="website-preview {isInPath ? 'in-path' : 'not-in-path'}"
 		class:dark={isDark}
 		style="left: {position.x}px; top: {position.y}px;"
 	>
@@ -100,7 +101,20 @@
 		z-index: 5; /* Lower than nodes to appear behind them */
 		transform: translate(-50%, -50%);
 		pointer-events: none;
-		transition: all 0.3s ease;
+		transition:
+			all 0.3s ease,
+			opacity 0.2s,
+			filter 0.2s;
+	}
+	.website-preview.not-in-path {
+		opacity: 0.3;
+		filter: grayscale(0.5);
+	}
+	.website-preview.in-path {
+		opacity: 1;
+		box-shadow: 0 0 0 3px #10b98144;
+		border: 2px solid #10b981;
+		z-index: 6;
 	}
 
 	.website-preview.dark {
