@@ -12,6 +12,15 @@
 	};
 
 	let isLoading = false;
+	let mode: 'manual' | 'autonomous' = 'manual';
+	let autonomousProgress: {
+		visited: string[];
+		currentPath: string[];
+		foundPath: string[];
+		error?: string;
+	} = { visited: [], currentPath: [], foundPath: [] };
+	let isAutonomousRunning = false;
+	let autonomousError = '';
 
 	function generateNodeId(): string {
 		return `node_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -248,27 +257,144 @@
 			selectedNodeId: null
 		};
 	}
+
+	async function startAutonomousPath() {
+		if (!pathState.startUrl.trim() || !pathState.endUrl.trim()) return;
+		isAutonomousRunning = true;
+		autonomousProgress = { visited: [], currentPath: [], foundPath: [] };
+		autonomousError = '';
+		pathState.nodes = new Map();
+		pathState.selectedNodeId = null;
+		pathState = pathState;
+		try {
+			let nodeIdMap = new Map<string, string>();
+			let nodeLevel = 0;
+			for await (const event of LinkAnalysisService.autonomousPath({
+				startUrl: pathState.startUrl,
+				endUrl: pathState.endUrl,
+				maxDepth: 3
+			})) {
+				if (event.event === 'visit') {
+					autonomousProgress.visited.push(event.url);
+					autonomousProgress.currentPath = event.path;
+					// Add node to pathState if not present
+					if (!nodeIdMap.has(event.url)) {
+						const nodeId = generateNodeId();
+						nodeIdMap.set(event.url, nodeId);
+						const parentId =
+							event.path.length > 1
+								? (nodeIdMap.get(event.path[event.path.length - 2]) ?? 'blank-start')
+								: 'blank-start';
+						const position = calculateNodePosition(nodeLevel, nodeIdMap.size - 1);
+						const node: PathNode = {
+							id: nodeId,
+							url: event.url,
+							linkSummary: null,
+							error: '',
+							isLoading: false,
+							parentId,
+							level: nodeLevel,
+							position,
+							isStartNode: event.url === pathState.startUrl,
+							isEndNode: event.url === pathState.endUrl
+						};
+						pathState.nodes.set(nodeId, node);
+						pathState = pathState;
+					}
+					if (event.url === pathState.endUrl) {
+						pathState.selectedNodeId = nodeIdMap.get(event.url) ?? null;
+						pathState = pathState;
+					}
+				}
+				if (event.event === 'found') {
+					autonomousProgress.foundPath = event.path;
+					isAutonomousRunning = false;
+					break;
+				}
+				if (event.event === 'not_found') {
+					isAutonomousRunning = false;
+					break;
+				}
+				if (event.event === 'error') {
+					autonomousError = event.error;
+				}
+			}
+		} catch (err) {
+			autonomousError = err instanceof Error ? err.message : String(err);
+		} finally {
+			isAutonomousRunning = false;
+		}
+	}
 </script>
 
 <div class="pathfinder-container">
-	<URLInput
-		bind:startUrl={pathState.startUrl}
-		bind:endUrl={pathState.endUrl}
-		{isLoading}
-		onAnalyzeStart={analyzeStartUrl}
-		onAnalyzeEnd={analyzeEndUrl}
-	/>
+	<div class="mode-toggle">
+		<label>
+			<input type="radio" bind:group={mode} value="manual" /> Manual
+		</label>
+		<label>
+			<input type="radio" bind:group={mode} value="autonomous" /> Autonomous
+		</label>
+	</div>
+
+	{#if mode === 'manual'}
+		<!-- Manual mode UI (existing) -->
+		<URLInput
+			bind:startUrl={pathState.startUrl}
+			bind:endUrl={pathState.endUrl}
+			{isLoading}
+			onAnalyzeStart={analyzeStartUrl}
+			onAnalyzeEnd={analyzeEndUrl}
+		/>
+		<button on:click={clearPath}>Clear</button>
+		<PathCanvas
+			{pathState}
+			onNodeSelect={selectNode}
+			onLinkClick={analyzeLinkFromNode}
+			onNodePositionUpdate={updateNodePosition}
+		/>
+	{/if}
+
+	{#if mode === 'autonomous'}
+		<!-- Autonomous mode UI -->
+		<URLInput
+			bind:startUrl={pathState.startUrl}
+			bind:endUrl={pathState.endUrl}
+			isLoading={isAutonomousRunning}
+			onAnalyzeStart={startAutonomousPath}
+			onAnalyzeEnd={startAutonomousPath}
+		/>
+		<button on:click={startAutonomousPath} disabled={isAutonomousRunning}
+			>Start Autonomous Path</button
+		>
+		<button on:click={clearPath} disabled={isAutonomousRunning}>Clear</button>
+		{#if isAutonomousRunning}
+			<p>Autonomous path finding in progress...</p>
+		{/if}
+		{#if autonomousError}
+			<p class="error">{autonomousError}</p>
+		{/if}
+		{#if autonomousProgress.foundPath.length > 0}
+			<p>Path found:</p>
+			<ol>
+				{#each autonomousProgress.foundPath as url}
+					<li>{url}</li>
+				{/each}
+			</ol>
+		{:else if !isAutonomousRunning && pathState.startUrl && pathState.endUrl}
+			<p>No path found.</p>
+		{/if}
+		<PathCanvas
+			{pathState}
+			onNodeSelect={selectNode}
+			onLinkClick={() => {}}
+			onNodePositionUpdate={updateNodePosition}
+		/>
+	{/if}
 
 	<div class="controls">
 		<button on:click={clearPath} class="clear-button"> Clear Path </button>
 	</div>
-
-	<PathCanvas
-		{pathState}
-		onNodeSelect={selectNode}
-		onLinkClick={analyzeLinkFromNode}
-		onNodePositionUpdate={updateNodePosition}
-	/>
 </div>
 
 <style>

@@ -11,13 +11,14 @@ if platform.system() == "Windows":
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
-from services.sitepage_link_finder import SiteLinkFinder
+from services.sitepage_link_finder import SiteLinkFinder, PathFinder
 from services.website_screenshot_service import ScreenshotAPI
 from typing import List, Optional
 from contextlib import asynccontextmanager
 import base64
+import json
 
 # Initialize screenshot API with browser pooling
 screenshot_cache_dir = "./cache/screenshot_cache"
@@ -214,6 +215,72 @@ async def take_full_page_screenshot(
         return Response(content=screenshot_bytes, media_type="image/jpeg")
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/autonomous-path")
+async def autonomous_path(
+    start_url: str = Query(..., description="Start URL"),
+    end_url: str = Query(..., description="End URL"),
+    max_depth: int = Query(3, description="Maximum search depth"),
+):
+    """
+    Stream autonomous path finding progress from start_url to end_url.
+    """
+
+    def event_stream():
+        path_finder = PathFinder(start_url, end_url, max_depth=max_depth)
+        # We'll use a custom version of find_path that yields progress
+        visited = set()
+        found = False
+        path = []
+
+        def _search(current_url, current_path, depth):
+            nonlocal found, path
+            if depth >= max_depth or found:
+                return
+            if current_url in visited:
+                return
+            visited.add(current_url)
+            new_path = current_path + [current_url]
+            # Send progress event
+            yield json.dumps(
+                {"event": "visit", "url": current_url, "path": new_path, "depth": depth}
+            ) + "\n"
+            if current_url == end_url:
+                found = True
+                path = new_path
+                yield json.dumps({"event": "found", "path": path}) + "\n"
+                return
+            try:
+                finder = SiteLinkFinder(current_url)
+                valid_links = finder.valid_links
+                main_text_links = finder.regular_links_within_main_text
+                other_links = [
+                    link for link in valid_links if link not in main_text_links
+                ]
+                for link in main_text_links + other_links:
+                    if found:
+                        break
+                    if link not in visited:
+                        yield from _search(link, new_path, depth + 1)
+            except Exception as e:
+                yield json.dumps(
+                    {
+                        "event": "error",
+                        "url": current_url,
+                        "error": str(e),
+                        "path": new_path,
+                        "depth": depth,
+                    }
+                ) + "\n"
+                return
+
+        # Start the search
+        yield from _search(start_url, [], 0)
+        if not found:
+            yield json.dumps({"event": "not_found", "path": []}) + "\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.get("/health")
