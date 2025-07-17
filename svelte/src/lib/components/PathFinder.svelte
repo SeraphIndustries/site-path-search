@@ -29,6 +29,83 @@
 		};
 	}
 
+	function calculateNodePositionFromParent(
+		parentNodeId: string,
+		level: number
+	): { x: number; y: number } {
+		const parentNode = pathState.nodes.get(parentNodeId);
+		if (!parentNode) {
+			// Fallback to grid positioning if no parent
+			return calculateNodePosition(level, 0);
+		}
+
+		// Get grandparent to calculate direction
+		let grandparentPosition: { x: number; y: number } | null = null;
+		if (
+			parentNode.parentId &&
+			parentNode.parentId !== 'blank-start' &&
+			parentNode.parentId !== 'blank-end'
+		) {
+			const grandparentNode = pathState.nodes.get(parentNode.parentId);
+			if (grandparentNode) {
+				grandparentPosition = grandparentNode.position;
+			}
+		}
+
+		// Calculate direction from grandparent to parent (if available)
+		let directionX = 1; // Default right direction
+		let directionY = 0;
+
+		if (grandparentPosition) {
+			// Calculate direction from grandparent to parent
+			const deltaX = parentNode.position.x - grandparentPosition.x;
+			const deltaY = parentNode.position.y - grandparentPosition.y;
+			const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+			if (distance > 0) {
+				directionX = deltaX / distance;
+				directionY = deltaY / distance;
+			}
+		} else if (parentNode.parentId === 'blank-start') {
+			// Start nodes flow right
+			directionX = 1;
+			directionY = 0;
+		} else if (parentNode.parentId === 'blank-end') {
+			// End nodes flow left
+			directionX = -1;
+			directionY = 0;
+		}
+
+		// Calculate spacing based on level
+		const baseSpacing = 400;
+		const levelSpacing = baseSpacing + level * 50; // Increase spacing for deeper levels
+
+		// Add some perpendicular offset to avoid overlap
+		const perpendicularOffset = 100;
+		const offsetX = -directionY * perpendicularOffset;
+		const offsetY = directionX * perpendicularOffset;
+
+		// Calculate new position
+		const newX = parentNode.position.x + directionX * levelSpacing + offsetX;
+		const newY = parentNode.position.y + directionY * levelSpacing + offsetY;
+
+		// Ensure minimum spacing from parent
+		const minSpacing = 350;
+		const actualDistance = Math.sqrt(
+			Math.pow(newX - parentNode.position.x, 2) + Math.pow(newY - parentNode.position.y, 2)
+		);
+
+		if (actualDistance < minSpacing) {
+			const scale = minSpacing / actualDistance;
+			return {
+				x: parentNode.position.x + (newX - parentNode.position.x) * scale,
+				y: parentNode.position.y + (newY - parentNode.position.y) * scale
+			};
+		}
+
+		return { x: newX, y: newY };
+	}
+
 	async function analyzeStartUrl() {
 		if (!pathState.startUrl.trim()) return;
 
@@ -119,7 +196,7 @@
 		const nodeId = generateNodeId();
 		const level = parentNode.level + 1;
 		const levelNodes = Array.from(pathState.nodes.values()).filter((n) => n.level === level);
-		const position = calculateNodePosition(level, levelNodes.length);
+		const position = calculateNodePositionFromParent(parentNodeId, level);
 
 		const node: PathNode = {
 			id: nodeId,

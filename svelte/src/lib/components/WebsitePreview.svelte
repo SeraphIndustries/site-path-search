@@ -97,7 +97,7 @@
 		border: 2px solid #e5e7eb;
 		border-radius: 0.5rem;
 		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-		z-index: 10;
+		z-index: 5; /* Lower than nodes to appear behind them */
 		transform: translate(-50%, -50%);
 		pointer-events: none;
 		transition: all 0.3s ease;

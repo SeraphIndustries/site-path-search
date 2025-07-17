@@ -169,38 +169,92 @@
 		isEndNode: true
 	};
 
-	// Calculate preview positions for connections
-	$: connectionPreviews = nodes
+	// Calculate connection points and preview positions
+	$: connections = nodes
 		.filter((node) => node.parentId)
 		.map((node) => {
 			let parentPosition: { x: number; y: number };
+			let parentId: string;
 
 			if (node.parentId === 'blank-start') {
 				parentPosition = blankStartNode.position;
+				parentId = 'blank-start';
 			} else if (node.parentId === 'blank-end') {
 				parentPosition = blankEndNode.position;
+				parentId = 'blank-end';
 			} else {
 				const parentNode = pathState.nodes.get(node.parentId!);
 				if (!parentNode) return null;
 				parentPosition = parentNode.position;
+				parentId = parentNode.id;
 			}
 
-			// Calculate midpoint of the connection
-			const midX = (parentPosition.x + 150 + node.position.x) / 2;
-			const midY = (parentPosition.y + 75 + node.position.y + 75) / 2;
+			const parentWidth = 300;
+			const parentHeight = 150;
+			const childX = node.position.x;
+			const childY = node.position.y + 75;
+
+			const parentLeft = parentPosition.x;
+			const parentRight = parentPosition.x + parentWidth;
+			const parentTop = parentPosition.y;
+			const parentBottom = parentPosition.y + parentHeight;
+
+			const distToLeft = Math.abs(childX - parentLeft);
+			const distToRight = Math.abs(childX - parentRight);
+			const distToTop = Math.abs(childY - parentTop);
+			const distToBottom = Math.abs(childY - parentBottom);
+
+			const minDist = Math.min(distToLeft, distToRight, distToTop, distToBottom);
+
+			let startX: number, startY: number;
+			if (minDist === distToRight) {
+				startX = parentRight;
+				startY = Math.max(parentTop, Math.min(parentBottom, childY));
+			} else if (minDist === distToLeft) {
+				startX = parentLeft;
+				startY = Math.max(parentTop, Math.min(parentBottom, childY));
+			} else if (minDist === distToBottom) {
+				startX = Math.max(parentLeft, Math.min(parentRight, childX));
+				startY = parentBottom;
+			} else {
+				startX = Math.max(parentLeft, Math.min(parentRight, childX));
+				startY = parentTop;
+			}
+
+			// Calculate direction vector from parent edge to child center
+			const endX0 = node.position.x;
+			const endY0 = node.position.y + 75;
+			const dx = endX0 - startX;
+			const dy = endY0 - startY;
+			const len = Math.sqrt(dx * dx + dy * dy) || 1;
+
+			// Extend the arrow line a bit past the child node edge for arrowhead visibility
+			const arrowOvershoot = 25; // Increased from 18 25px
+			const endX = endX0 + (dx / len) * arrowOvershoot;
+			const endY = endY0 + (dy / len) * arrowOvershoot;
+
+			// Screenshot preview at 80% toward the child
+			const previewRatio = 0.8;
+			const previewX = startX + dx * previewRatio;
+			const previewY = startY + dy * previewRatio;
 
 			return {
+				nodeId: node.id,
+				parentId,
+				startX,
+				startY,
+				endX,
+				endY,
+				previewPosition: { x: previewX, y: previewY },
 				url: node.url,
-				position: { x: midX, y: midY },
-				isVisible: true
+				isStartConnection: node.parentId === 'blank-start',
+				isEndConnection: node.parentId === 'blank-end'
 			};
 		})
-		.filter(
-			(
-				preview
-			): preview is { url: string; position: { x: number; y: number }; isVisible: boolean } =>
-				preview !== null
-		);
+		.filter((conn): conn is NonNullable<typeof conn> => conn !== null);
+
+	// Sort nodes by level for proper z-index layering
+	$: sortedNodes = [...nodes].sort((a, b) => a.level - b.level);
 </script>
 
 <div class="canvas-wrapper" class:dark={isDark}>
@@ -219,82 +273,74 @@
 		<div bind:this={canvasContainer} class="path-canvas">
 			<!-- Connection lines -->
 			<svg class="connections" width="100%" height="100%">
-				{#each nodes as node}
-					{#if node.parentId}
-						{#if node.parentId === 'blank-start'}
-							<!-- Connection from blank start node -->
-							<line
-								x1={blankStartNode.position.x + 150}
-								y1={blankStartNode.position.y + 75}
-								x2={node.position.x}
-								y2={node.position.y + 75}
-								stroke={isDark ? '#3b82f6' : '#1d4ed8'}
-								stroke-width="3"
-								marker-end="url(#arrowhead-start)"
-							/>
-						{:else if node.parentId === 'blank-end'}
-							<!-- Connection from blank end node -->
-							<line
-								x1={blankEndNode.position.x + 150}
-								y1={blankEndNode.position.y + 75}
-								x2={node.position.x}
-								y2={node.position.y + 75}
-								stroke={isDark ? '#10b981' : '#047857'}
-								stroke-width="3"
-								marker-end="url(#arrowhead-end)"
-							/>
-						{:else}
-							<!-- Regular connections between nodes -->
-							{@const parentNode = pathState.nodes.get(node.parentId)}
-							{#if parentNode}
-								<line
-									x1={parentNode.position.x + 150}
-									y1={parentNode.position.y + 75}
-									x2={node.position.x}
-									y2={node.position.y + 75}
-									stroke={isDark ? '#9ca3af' : '#6b7280'}
-									stroke-width="2"
-									marker-end="url(#arrowhead)"
-								/>
-							{/if}
-						{/if}
-					{/if}
+				{#each connections as conn}
+					<line
+						x1={conn.startX}
+						y1={conn.startY}
+						x2={conn.endX}
+						y2={conn.endY}
+						stroke={conn.isStartConnection
+							? isDark
+								? '#3b82f6'
+								: '#1d4ed8'
+							: conn.isEndConnection
+								? isDark
+									? '#10b981'
+									: '#047857'
+								: isDark
+									? '#9ca3af'
+									: '#6b7280'}
+						stroke-width={conn.isStartConnection || conn.isEndConnection ? '3' : '2'}
+						marker-end={conn.isStartConnection
+							? 'url(#arrowhead-start)'
+							: conn.isEndConnection
+								? 'url(#arrowhead-end)'
+								: 'url(#arrowhead)'}
+					/>
 				{/each}
 				<defs>
 					<marker
 						id="arrowhead"
-						markerWidth="10"
-						markerHeight="7"
-						refX="9"
-						refY="3.5"
+						markerWidth="20"
+						markerHeight="16"
+						refX="18"
+						refY="8"
 						orient="auto"
+						markerUnits="userSpaceOnUse"
 					>
-						<polygon points="0 0, 10 3.5, 0 7" fill={isDark ? '#9ca3af' : '#6b7280'} />
+						<polygon points="0 0, 20 8, 0 16" fill={isDark ? '#9ca3af' : '#6b7280'} />
 					</marker>
 					<marker
 						id="arrowhead-start"
-						markerWidth="12"
-						markerHeight="8"
-						refX="10"
-						refY="4"
+						markerWidth="24"
+						markerHeight="18"
+						refX="22"
+						refY="9"
 						orient="auto"
+						markerUnits="userSpaceOnUse"
 					>
-						<polygon points="0 0, 12 4, 0 8" fill={isDark ? '#3b82f6' : '#1d4ed8'} />
+						<polygon points="0 0, 24 9, 0 18" fill={isDark ? '#3b82f6' : '#1d4ed8'} />
 					</marker>
 					<marker
 						id="arrowhead-end"
-						markerWidth="12"
-						markerHeight="8"
-						refX="10"
-						refY="4"
+						markerWidth="24"
+						markerHeight="18"
+						refX="22"
+						refY="9"
 						orient="auto"
+						markerUnits="userSpaceOnUse"
 					>
-						<polygon points="0 0, 12 4, 0 8" fill={isDark ? '#10b981' : '#047857'} />
+						<polygon points="0 0, 24 9, 0 18" fill={isDark ? '#10b981' : '#047857'} />
 					</marker>
 				</defs>
 			</svg>
 
-			<!-- Blank start and end nodes -->
+			<!-- Website previews along connections (behind nodes) -->
+			{#each connections as conn}
+				<WebsitePreview url={conn.url} {isDark} position={conn.previewPosition} isVisible={true} />
+			{/each}
+
+			<!-- Blank start and end nodes (lowest z-index) -->
 			<PathNode
 				node={blankStartNode}
 				{isDark}
@@ -312,8 +358,8 @@
 				onPositionUpdate={() => {}}
 			/>
 
-			<!-- Path nodes -->
-			{#each nodes as node (node.id)}
+			<!-- Path nodes sorted by level for proper z-index -->
+			{#each sortedNodes as node (node.id)}
 				<PathNode
 					{node}
 					{isDark}
@@ -322,16 +368,6 @@
 					onLinkClick={(linkUrl: string) => onLinkClick(node.id, linkUrl)}
 					onPositionUpdate={(position: { x: number; y: number }) =>
 						onNodePositionUpdate(node.id, position)}
-				/>
-			{/each}
-
-			<!-- Website previews along connections -->
-			{#each connectionPreviews as preview}
-				<WebsitePreview
-					url={preview.url}
-					{isDark}
-					position={preview.position}
-					isVisible={preview.isVisible}
 				/>
 			{/each}
 		</div>
@@ -391,8 +427,8 @@
 	}
 
 	.path-canvas {
-		width: 2000px;
-		height: 2000px;
+		width: 10000px;
+		height: 10000px;
 		position: absolute;
 		top: 0;
 		left: 0;

@@ -118,6 +118,7 @@
 	class:start-node={isStartNode}
 	class:end-node={isEndNode}
 	style="left: {node.position.x}px; top: {node.position.y}px;"
+	data-level={node.level}
 	on:mousedown={handleMouseDown}
 	on:click={onSelect}
 	on:keydown={handleKeyDown}
@@ -203,6 +204,35 @@
 		cursor: move;
 		transition: all 0.2s ease;
 		z-index: 2;
+	}
+
+	/* Z-index layering based on node level */
+	.path-node[data-level='-1'] {
+		z-index: 1;
+	}
+
+	.path-node[data-level='0'] {
+		z-index: 10;
+	}
+
+	.path-node[data-level='1'] {
+		z-index: 20;
+	}
+
+	.path-node[data-level='2'] {
+		z-index: 30;
+	}
+
+	.path-node[data-level='3'] {
+		z-index: 40;
+	}
+
+	.path-node[data-level='4'] {
+		z-index: 50;
+	}
+
+	.path-node[data-level='5'] {
+		z-index: 60;
 	}
 
 	.path-node.dark {
