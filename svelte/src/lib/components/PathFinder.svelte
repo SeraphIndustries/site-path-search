@@ -38,6 +38,207 @@
 		};
 	}
 
+	// Check if a rectangular area collides with another rectangle
+	function checkRectangleCollision(
+		x1: number,
+		y1: number,
+		width1: number,
+		height1: number,
+		x2: number,
+		y2: number,
+		width2: number,
+		height2: number,
+		margin: number = 0
+	): boolean {
+		return (
+			x1 < x2 + width2 + margin &&
+			x1 + width1 + margin > x2 &&
+			y1 < y2 + height2 + margin &&
+			y1 + height1 + margin > y2
+		);
+	}
+
+	// Check if a position collides with existing nodes and their associated elements
+	function checkPositionCollision(x: number, y: number, excludeNodeId?: string): boolean {
+		const nodeWidth = 500; // Expanded width
+		const nodeHeight = 200; // More realistic height for expanded nodes
+		const previewWidth = 280; // Screenshot preview width
+		const previewHeight = 200; // Screenshot preview height
+		const margin = 40; // Margin between elements
+
+		// Check collision with all existing real nodes
+		for (const [nodeId, node] of pathState.nodes) {
+			if (nodeId === excludeNodeId) continue;
+
+			// Check collision with the node itself
+			if (
+				checkRectangleCollision(
+					x,
+					y,
+					nodeWidth,
+					nodeHeight,
+					node.position.x,
+					node.position.y,
+					nodeWidth,
+					nodeHeight,
+					margin
+				)
+			) {
+				return true;
+			}
+
+			// Check collision with the node's screenshot preview (positioned to the left)
+			const previewX = node.position.x - 320; // 280px width + 40px gap
+			const previewY = node.position.y;
+
+			if (
+				checkRectangleCollision(
+					x,
+					y,
+					nodeWidth,
+					nodeHeight,
+					previewX,
+					previewY,
+					previewWidth,
+					previewHeight,
+					margin
+				)
+			) {
+				return true;
+			}
+
+			// Also check if our screenshot preview would collide with existing nodes
+			const ourPreviewX = x - 320;
+			const ourPreviewY = y;
+
+			if (
+				checkRectangleCollision(
+					ourPreviewX,
+					ourPreviewY,
+					previewWidth,
+					previewHeight,
+					node.position.x,
+					node.position.y,
+					nodeWidth,
+					nodeHeight,
+					margin
+				)
+			) {
+				return true;
+			}
+
+			// Check if our screenshot preview would collide with their screenshot preview
+			if (
+				checkRectangleCollision(
+					ourPreviewX,
+					ourPreviewY,
+					previewWidth,
+					previewHeight,
+					previewX,
+					previewY,
+					previewWidth,
+					previewHeight,
+					margin
+				)
+			) {
+				return true;
+			}
+		}
+
+		// Check against blank nodes if they're visible
+		const blankStartPos = { x: 4800, y: 5000 };
+		const blankEndPos = { x: 5700, y: 5000 };
+		const blankNodeWidth = 300; // Blank nodes are smaller
+		const blankNodeHeight = 150;
+
+		// Check blank start node if visible
+		if (!Array.from(pathState.nodes.values()).some((n) => n.isStartNode)) {
+			if (
+				checkRectangleCollision(
+					x,
+					y,
+					nodeWidth,
+					nodeHeight,
+					blankStartPos.x,
+					blankStartPos.y,
+					blankNodeWidth,
+					blankNodeHeight,
+					margin
+				)
+			) {
+				return true;
+			}
+		}
+
+		// Check blank end node if visible
+		if (!Array.from(pathState.nodes.values()).some((n) => n.isEndNode)) {
+			if (
+				checkRectangleCollision(
+					x,
+					y,
+					nodeWidth,
+					nodeHeight,
+					blankEndPos.x,
+					blankEndPos.y,
+					blankNodeWidth,
+					blankNodeHeight,
+					margin
+				)
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	// Find an optimal position using spiral search around ideal location
+	function findOptimalPosition(
+		idealX: number,
+		idealY: number,
+		excludeNodeId?: string
+	): { x: number; y: number } {
+		// First try the ideal position
+		if (!checkPositionCollision(idealX, idealY, excludeNodeId)) {
+			return { x: idealX, y: idealY };
+		}
+
+		// Spiral search parameters
+		const stepSize = 80;
+		const maxRadius = 800; // Maximum search distance
+
+		// Try positions in expanding spiral
+		for (let radius = stepSize; radius <= maxRadius; radius += stepSize) {
+			const positions = [];
+
+			// Generate positions around a circle at current radius
+			const numPositions = Math.max(8, Math.floor(radius / 40)); // More positions for larger radii
+			for (let i = 0; i < numPositions; i++) {
+				const angle = (i / numPositions) * 2 * Math.PI;
+				const x = idealX + radius * Math.cos(angle);
+				const y = idealY + radius * Math.sin(angle);
+				positions.push({ x, y });
+			}
+
+			// Sort positions by distance from ideal location
+			positions.sort((a, b) => {
+				const distA = Math.sqrt((a.x - idealX) ** 2 + (a.y - idealY) ** 2);
+				const distB = Math.sqrt((b.x - idealX) ** 2 + (b.y - idealY) ** 2);
+				return distA - distB;
+			});
+
+			// Try each position at this radius
+			for (const pos of positions) {
+				if (!checkPositionCollision(pos.x, pos.y, excludeNodeId)) {
+					return pos;
+				}
+			}
+		}
+
+		// Fallback: return ideal position even if it collides
+		return { x: idealX, y: idealY };
+	}
+
 	function calculateNodePositionFromParent(
 		parentNodeId: string,
 		level: number
@@ -85,34 +286,80 @@
 			directionY = 0;
 		}
 
-		// Calculate spacing based on level
-		const baseSpacing = 400;
+		// Calculate spacing based on level - account for larger effective node area with previews
+		const baseSpacing = 650; // Increased to account for screenshot previews
 		const levelSpacing = baseSpacing + level * 50; // Increase spacing for deeper levels
 
-		// Add some perpendicular offset to avoid overlap
-		const perpendicularOffset = 100;
-		const offsetX = -directionY * perpendicularOffset;
-		const offsetY = directionX * perpendicularOffset;
+		// Try multiple positions around the parent
+		const positions = [];
 
-		// Calculate new position
-		const newX = parentNode.position.x + directionX * levelSpacing + offsetX;
-		const newY = parentNode.position.y + directionY * levelSpacing + offsetY;
+		// Primary direction (continuing the flow)
+		let primaryX = parentNode.position.x + directionX * levelSpacing;
+		let primaryY = parentNode.position.y + directionY * levelSpacing;
+		positions.push({ x: primaryX, y: primaryY, priority: 1 });
 
-		// Ensure minimum spacing from parent
-		const minSpacing = 350;
+		// Perpendicular directions (branching out) - increased to account for screenshot previews
+		const perpendicularOffsets = [250, -250, 450, -450];
+		for (const offset of perpendicularOffsets) {
+			const offsetX = -directionY * offset;
+			const offsetY = directionX * offset;
+			positions.push({
+				x: primaryX + offsetX,
+				y: primaryY + offsetY,
+				priority: 2
+			});
+		}
+
+		// Additional radial positions for more variety
+		const radialAngles = [Math.PI / 4, -Math.PI / 4, (3 * Math.PI) / 4, (-3 * Math.PI) / 4];
+		for (const angle of radialAngles) {
+			const radialX = parentNode.position.x + levelSpacing * Math.cos(angle);
+			const radialY = parentNode.position.y + levelSpacing * Math.sin(angle);
+			positions.push({ x: radialX, y: radialY, priority: 3 });
+		}
+
+		// Sort by priority and try each position
+		positions.sort((a, b) => a.priority - b.priority);
+
+		for (const pos of positions) {
+			// Ensure minimum spacing from parent - increased for screenshot previews
+			const minSpacing = 450;
+			const actualDistance = Math.sqrt(
+				Math.pow(pos.x - parentNode.position.x, 2) + Math.pow(pos.y - parentNode.position.y, 2)
+			);
+
+			if (actualDistance < minSpacing) {
+				const scale = minSpacing / actualDistance;
+				pos.x = parentNode.position.x + (pos.x - parentNode.position.x) * scale;
+				pos.y = parentNode.position.y + (pos.y - parentNode.position.y) * scale;
+			}
+
+			// Use optimal position finding for this candidate
+			const optimalPos = findOptimalPosition(pos.x, pos.y);
+
+			// If this position doesn't collide, use it
+			if (!checkPositionCollision(optimalPos.x, optimalPos.y)) {
+				return optimalPos;
+			}
+		}
+
+		// Fallback: use the first position even if it collides
+		const fallbackPos = positions[0];
+		const minSpacing = 450;
 		const actualDistance = Math.sqrt(
-			Math.pow(newX - parentNode.position.x, 2) + Math.pow(newY - parentNode.position.y, 2)
+			Math.pow(fallbackPos.x - parentNode.position.x, 2) +
+				Math.pow(fallbackPos.y - parentNode.position.y, 2)
 		);
 
 		if (actualDistance < minSpacing) {
 			const scale = minSpacing / actualDistance;
 			return {
-				x: parentNode.position.x + (newX - parentNode.position.x) * scale,
-				y: parentNode.position.y + (newY - parentNode.position.y) * scale
+				x: parentNode.position.x + (fallbackPos.x - parentNode.position.x) * scale,
+				y: parentNode.position.y + (fallbackPos.y - parentNode.position.y) * scale
 			};
 		}
 
-		return { x: newX, y: newY };
+		return { x: fallbackPos.x, y: fallbackPos.y };
 	}
 
 	async function analyzeStartUrl() {
