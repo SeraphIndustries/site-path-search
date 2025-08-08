@@ -6,6 +6,8 @@
 	export let position: { x: number; y: number };
 	export let isVisible: boolean = false;
 	export let isInPath: boolean = false;
+	export let isStartConnection: boolean = false;
+	export let isEndConnection: boolean = false;
 
 	let previewImage: string | null = null;
 	let isLoading = true;
@@ -61,6 +63,8 @@
 	<div
 		class="website-preview {isInPath ? 'in-path' : 'not-in-path'}"
 		class:dark={isDark}
+		class:start-connection={isStartConnection}
+		class:end-connection={isEndConnection}
 		style="left: {position.x}px; top: {position.y}px;"
 	>
 		<div class="preview-header">
@@ -99,7 +103,6 @@
 		border-radius: 0.5rem;
 		box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 		z-index: 5; /* Lower than nodes to appear behind them */
-		transform: translate(-50%, -50%);
 		pointer-events: none;
 		transition:
 			all 0.3s ease,
@@ -115,6 +118,28 @@
 		box-shadow: 0 0 0 3px #10b98144;
 		border: 2px solid #10b981;
 		z-index: 6;
+	}
+
+	/* Start connection styling (blue) */
+	.website-preview.in-path.start-connection {
+		box-shadow: 0 0 0 3px #3b82f644;
+		border: 2px solid #3b82f6;
+	}
+
+	.website-preview.dark.in-path.start-connection {
+		box-shadow: 0 0 0 3px #60a5fa44;
+		border: 2px solid #60a5fa;
+	}
+
+	/* End connection styling (green) - keep existing */
+	.website-preview.in-path.end-connection {
+		box-shadow: 0 0 0 3px #10b98144;
+		border: 2px solid #10b981;
+	}
+
+	.website-preview.dark.in-path.end-connection {
+		box-shadow: 0 0 0 3px #34d39944;
+		border: 2px solid #34d399;
 	}
 
 	.website-preview.dark {

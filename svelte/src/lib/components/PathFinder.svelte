@@ -27,8 +27,8 @@
 	}
 
 	function calculateNodePosition(level: number, index: number): { x: number; y: number } {
-		const baseX = 200;
-		const baseY = 200;
+		const baseX = 5600; // Start far enough from the blank start node for proper clickability
+		const baseY = 5000; // Same Y as blank nodes
 		const levelSpacing = 350;
 		const nodeSpacing = 250;
 
@@ -75,11 +75,11 @@
 				directionX = deltaX / distance;
 				directionY = deltaY / distance;
 			}
-		} else if (parentNode.parentId === 'blank-start') {
+		} else if (parentNode.isStartNode) {
 			// Start nodes flow right
 			directionX = 1;
 			directionY = 0;
-		} else if (parentNode.parentId === 'blank-end') {
+		} else if (parentNode.isEndNode) {
 			// End nodes flow left
 			directionX = -1;
 			directionY = 0;
@@ -120,7 +120,7 @@
 
 		isLoading = true;
 		const nodeId = generateNodeId();
-		const position = calculateNodePosition(0, 0);
+		const position = { x: 4800, y: 5000 }; // Position where blank start node was
 
 		const node: PathNode = {
 			id: nodeId,
@@ -128,7 +128,7 @@
 			linkSummary: null,
 			error: '',
 			isLoading: true,
-			parentId: 'blank-start', // Connect to blank start node
+			parentId: undefined, // No parent - this IS the start
 			level: 0,
 			position,
 			isStartNode: true,
@@ -157,7 +157,7 @@
 
 		isLoading = true;
 		const nodeId = generateNodeId();
-		const position = calculateNodePosition(0, 1);
+		const position = { x: 5700, y: 5000 }; // Position where blank end node was
 
 		const node: PathNode = {
 			id: nodeId,
@@ -165,7 +165,7 @@
 			linkSummary: null,
 			error: '',
 			isLoading: true,
-			parentId: 'blank-end', // Connect to blank end node
+			parentId: undefined, // No parent - this IS the end
 			level: 0,
 			position,
 			isStartNode: false,

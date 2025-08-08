@@ -10,8 +10,9 @@
 	export let onPositionUpdate: (position: { x: number; y: number }) => void;
 	export let isDark: boolean = false;
 	export let isInPath: boolean = false;
+	export let connectionOrigin: 'start' | 'end' | 'none' = 'none';
 
-	let isExpanded = false;
+	let isExpanded = true;
 	let isDragging = false;
 	let dragStart = { x: 0, y: 0 };
 	let showAllLinks = false;
@@ -118,6 +119,8 @@
 	class:dark={isDark}
 	class:start-node={isStartNode}
 	class:end-node={isEndNode}
+	class:start-chain={connectionOrigin === 'start' && !isStartNode && !isEndNode}
+	class:end-chain={connectionOrigin === 'end' && !isStartNode && !isEndNode}
 	style="left: {node.position.x}px; top: {node.position.y}px;"
 	data-level={node.level}
 	on:mousedown={handleMouseDown}
@@ -129,7 +132,10 @@
 >
 	<div class="node-header">
 		<div class="node-title">
-			<span class="node-level" class:start-level={isStartNode} class:end-level={isEndNode}
+			<span
+				class="node-level"
+				class:start-level={isStartNode || connectionOrigin === 'start'}
+				class:end-level={isEndNode || connectionOrigin === 'end'}
 				>{node.level >= 0 ? `L${node.level}` : isStartNode ? 'START' : 'END'}</span
 			>
 			<span class="node-url">{node.url}</span>
@@ -205,8 +211,7 @@
 		cursor: move;
 		transition: all 0.2s ease;
 		z-index: 2;
-		opacity: 0.3;
-		filter: grayscale(0.5);
+		opacity: 1;
 	}
 	.path-node.not-in-path {
 		opacity: 0.3;
@@ -276,6 +281,28 @@
 		border-color: #34d399;
 	}
 
+	/* Start chain styling (nodes that ultimately connect to start) */
+	.path-node.start-chain {
+		border-color: #3b82f6;
+		background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+	}
+
+	.path-node.dark.start-chain {
+		background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+		border-color: #60a5fa;
+	}
+
+	/* End chain styling (nodes that ultimately connect to end) */
+	.path-node.end-chain {
+		border-color: #10b981;
+		background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+	}
+
+	.path-node.dark.end-chain {
+		background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+		border-color: #34d399;
+	}
+
 	.path-node.selected {
 		border-color: #f59e0b;
 		box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
@@ -321,6 +348,26 @@
 	}
 
 	.path-node.dark.end-node .node-header {
+		background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+		border-bottom-color: #34d399;
+	}
+
+	.path-node.start-chain .node-header {
+		background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+		border-bottom-color: #3b82f6;
+	}
+
+	.path-node.dark.start-chain .node-header {
+		background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
+		border-bottom-color: #60a5fa;
+	}
+
+	.path-node.end-chain .node-header {
+		background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+		border-bottom-color: #10b981;
+	}
+
+	.path-node.dark.end-chain .node-header {
 		background: linear-gradient(135deg, #065f46 0%, #047857 100%);
 		border-bottom-color: #34d399;
 	}
