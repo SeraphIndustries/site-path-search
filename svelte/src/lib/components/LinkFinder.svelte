@@ -1,9 +1,9 @@
 <script lang="ts">
-	import URLInput from './URLInput.svelte';
-	import ResultsDisplay from './ResultsDisplay.svelte';
-	import ErrorDisplay from './ErrorDisplay.svelte';
-	import type { LinkSummary } from '$lib/types/linkAnalysis';
 	import { LinkAnalysisService } from '$lib/services/linkAnalysisService';
+	import type { LinkSummary } from '$lib/types/linkAnalysis';
+	import ErrorDisplay from './ErrorDisplay.svelte';
+	import ResultsDisplay from './ResultsDisplay.svelte';
+	import URLInput from './URLInput.svelte';
 
 	let startUrl = '';
 	let endUrl = '';

@@ -30,7 +30,8 @@
 
     // Markdown
     "bierner.markdown-mermaid",
-    "bpruitt-goddard.mermaid-markdown-syntax-highlighting"
+    "bpruitt-goddard.mermaid-markdown-syntax-highlighting",
+    "unifiedjs.vscode-mdx"
 
 	],
 	"unwantedRecommendations": [
