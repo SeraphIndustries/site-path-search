@@ -1,0 +1,42 @@
+{
+	"recommendations": [
+		// Core Svelte/SvelteKit Development
+		"svelte.svelte-vscode",
+
+		// Code Formatting & Linting
+		"esbenp.prettier-vscode",
+		"dbaeumer.vscode-eslint",
+
+		// TypeScript & JavaScript
+		"ms-vscode.vscode-typescript-next",
+
+		// TailwindCSS
+		"bradlc.vscode-tailwindcss",
+
+		// Python Development
+		"ms-python.python",
+		"ms-python.black-formatter",
+		"ms-python.isort",
+		"ms-python.mypy-type-checker",
+
+		// Testing & Debugging
+		"ms-playwright.playwright",
+		"hbenl.vscode-test-explorer",
+		"ms-vscode.test-adapter-converter",
+
+		// Development Experience
+		"ms-vscode.vscode-json",
+		"ms-vscode.vscode-markdown",
+
+    // Markdown
+    "bierner.markdown-mermaid",
+    "bpruitt-goddard.mermaid-markdown-syntax-highlighting"
+
+	],
+	"unwantedRecommendations": [
+		// Extensions that might conflict or aren't needed
+		"hookyqr.beautify",
+		"ms-vscode.vscode-css-formatter"
+
+	]
+}
