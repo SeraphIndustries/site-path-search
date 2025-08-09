@@ -1,22 +1,28 @@
 import type { PathState } from '$lib/types/linkAnalysis';
 
-// Check if a rectangular area collides with another rectangle
+export interface Rectangle {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+// Helper function to create a rectangle
+export function createRectangle(x: number, y: number, width: number, height: number): Rectangle {
+	return { x, y, width, height };
+}
+
+// Check if two rectangles collide with an optional margin
 export function checkRectangleCollision(
-	x1: number,
-	y1: number,
-	width1: number,
-	height1: number,
-	x2: number,
-	y2: number,
-	width2: number,
-	height2: number,
+	rect1: Rectangle,
+	rect2: Rectangle,
 	margin: number = 0
 ): boolean {
 	return (
-		x1 < x2 + width2 + margin &&
-		x1 + width1 + margin > x2 &&
-		y1 < y2 + height2 + margin &&
-		y1 + height1 + margin > y2
+		rect1.x < rect2.x + rect2.width + margin &&
+		rect1.x + rect1.width + margin > rect2.x &&
+		rect1.y < rect2.y + rect2.height + margin &&
+		rect1.y + rect1.height + margin > rect2.y
 	);
 }
 
@@ -33,125 +39,58 @@ export function checkPositionCollision(
 	const previewHeight = 200; // Screenshot preview height
 	const margin = 40; // Margin between elements
 
+	// Create rectangle for the position we're checking
+	const candidateRect = createRectangle(x, y, nodeWidth, nodeHeight);
+
 	// Check collision with all existing real nodes
 	for (const [nodeId, node] of pathState.nodes) {
 		if (nodeId === excludeNodeId) continue;
 
 		// Check collision with the node itself
-		if (
-			checkRectangleCollision(
-				x,
-				y,
-				nodeWidth,
-				nodeHeight,
-				node.position.x,
-				node.position.y,
-				nodeWidth,
-				nodeHeight,
-				margin
-			)
-		) {
+		const nodeRect = createRectangle(node.position.x, node.position.y, nodeWidth, nodeHeight);
+		if (checkRectangleCollision(candidateRect, nodeRect, margin)) {
 			return true;
 		}
 
 		// Check collision with the node's screenshot preview (positioned to the left)
-		const previewX = node.position.x - 320; // 280px width + 40px gap
-		const previewY = node.position.y;
+		const nodePreviewRect = createRectangle(
+			node.position.x - 320, // 280px width + 40px gap
+			node.position.y,
+			previewWidth,
+			previewHeight
+		);
 
-		if (
-			checkRectangleCollision(
-				x,
-				y,
-				nodeWidth,
-				nodeHeight,
-				previewX,
-				previewY,
-				previewWidth,
-				previewHeight,
-				margin
-			)
-		) {
+		if (checkRectangleCollision(candidateRect, nodePreviewRect, margin)) {
 			return true;
 		}
 
 		// Also check if our screenshot preview would collide with existing nodes
-		const ourPreviewX = x - 320;
-		const ourPreviewY = y;
+		const ourPreviewRect = createRectangle(x - 320, y, previewWidth, previewHeight);
 
-		if (
-			checkRectangleCollision(
-				ourPreviewX,
-				ourPreviewY,
-				previewWidth,
-				previewHeight,
-				node.position.x,
-				node.position.y,
-				nodeWidth,
-				nodeHeight,
-				margin
-			)
-		) {
+		if (checkRectangleCollision(ourPreviewRect, nodeRect, margin)) {
 			return true;
 		}
 
 		// Check if our screenshot preview would collide with their screenshot preview
-		if (
-			checkRectangleCollision(
-				ourPreviewX,
-				ourPreviewY,
-				previewWidth,
-				previewHeight,
-				previewX,
-				previewY,
-				previewWidth,
-				previewHeight,
-				margin
-			)
-		) {
+		if (checkRectangleCollision(ourPreviewRect, nodePreviewRect, margin)) {
 			return true;
 		}
 	}
 
 	// Check against blank nodes if they're visible
-	const blankStartPos = { x: 4800, y: 5000 };
-	const blankEndPos = { x: 5700, y: 5000 };
-	const blankNodeWidth = 300; // Blank nodes are smaller
-	const blankNodeHeight = 150;
+	const blankStartRect = createRectangle(4800, 5000, 300, 150); // Blank nodes are smaller
+	const blankEndRect = createRectangle(5700, 5000, 300, 150);
 
 	// Check blank start node if visible
 	if (!Array.from(pathState.nodes.values()).some((n) => n.isStartNode)) {
-		if (
-			checkRectangleCollision(
-				x,
-				y,
-				nodeWidth,
-				nodeHeight,
-				blankStartPos.x,
-				blankStartPos.y,
-				blankNodeWidth,
-				blankNodeHeight,
-				margin
-			)
-		) {
+		if (checkRectangleCollision(candidateRect, blankStartRect, margin)) {
 			return true;
 		}
 	}
 
 	// Check blank end node if visible
 	if (!Array.from(pathState.nodes.values()).some((n) => n.isEndNode)) {
-		if (
-			checkRectangleCollision(
-				x,
-				y,
-				nodeWidth,
-				nodeHeight,
-				blankEndPos.x,
-				blankEndPos.y,
-				blankNodeWidth,
-				blankNodeHeight,
-				margin
-			)
-		) {
+		if (checkRectangleCollision(candidateRect, blankEndRect, margin)) {
 			return true;
 		}
 	}

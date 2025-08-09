@@ -218,6 +218,12 @@ __marimo__/
 **/.svelte-kit
 **/build
 
+# Testing & Coverage (Frontend)
+**/coverage/
+**/playwright-report/
+**/test-results/
+**/.nyc_output
+
 # OS
 **/.DS_Store
 **/Thumbs.db
@@ -232,6 +238,7 @@ __marimo__/
 **/vite.config.js.timestamp-*
 **/vite.config.ts.timestamp-*
 
+# Storybook
 **/*storybook.log
 **/storybook-static
 
