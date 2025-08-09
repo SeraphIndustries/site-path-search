@@ -2,6 +2,28 @@
 	import PathNode from './PathNode.svelte';
 	import WebsitePreview from './WebsitePreview.svelte';
 	import type { PathState, PathNode as PathNodeType } from '$lib/types/linkAnalysis';
+	import {
+		createCanvasState,
+		initializeCanvasOffset,
+		handleCanvasMouseDown,
+		handleCanvasMouseMove,
+		handleCanvasMouseUp,
+		handleCanvasKeyDown,
+		handleCanvasWheel,
+		updateCanvasTransform,
+		zoomIn,
+		zoomOut,
+		resetView,
+		checkDarkMode,
+		ZOOM_LIMITS,
+		type CanvasState
+	} from '$lib/utils/canvasOperations';
+	import {
+		calculateConnections,
+		getConnectionOrigin,
+		createBlankStartNode,
+		createBlankEndNode
+	} from '$lib/utils/connectionUtils';
 
 	type AutonomousProgress = {
 		visited: string[];
@@ -22,167 +44,54 @@
 
 	let canvasContainer: HTMLDivElement;
 	let canvasWrapper: HTMLDivElement;
-	let isDragging = false;
-	let dragStart = { x: 0, y: 0 };
-	let canvasOffset = { x: 0, y: 0 };
-
-	// Initialize canvas offset to center on blank nodes
-	function initializeCanvasOffset() {
-		if (canvasWrapper) {
-			const viewportRect = canvasWrapper.getBoundingClientRect();
-			const centerX = (blankStartNode.position.x + blankEndNode.position.x) / 2;
-			const centerY = (blankStartNode.position.y + blankEndNode.position.y) / 2;
-			canvasOffset.x = viewportRect.width / 2 - centerX;
-			canvasOffset.y = viewportRect.height / 2 - centerY;
-			updateCanvasTransform();
-		}
-	}
-	let isDark = false;
-	let zoom = 1;
-	const minZoom = 0.3;
-	const maxZoom = 3;
-
-	function checkDarkMode() {
-		const mainContainer = document.querySelector('.main-container');
-		isDark = mainContainer?.classList.contains('dark') || false;
-	}
+	let canvasState: CanvasState = createCanvasState();
 
 	function handleMouseDown(event: MouseEvent) {
-		// Only handle canvas dragging if clicking on the canvas itself, not on nodes
-		if (event.target === canvasContainer || event.target === canvasWrapper) {
-			isDragging = true;
-			dragStart = { x: event.clientX - canvasOffset.x, y: event.clientY - canvasOffset.y };
-		}
+		handleCanvasMouseDown(event, canvasContainer, canvasWrapper, canvasState);
 	}
 
 	function handleMouseMove(event: MouseEvent) {
-		if (isDragging) {
-			canvasOffset.x = event.clientX - dragStart.x;
-			canvasOffset.y = event.clientY - dragStart.y;
-			updateCanvasTransform();
+		handleCanvasMouseMove(event, canvasState);
+		if (canvasState.isDragging) {
+			updateCanvasTransform(canvasContainer, canvasState);
 		}
 	}
 
 	function handleMouseUp() {
-		isDragging = false;
+		handleCanvasMouseUp(canvasState);
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
-		if (
-			event.key === 'ArrowUp' ||
-			event.key === 'ArrowDown' ||
-			event.key === 'ArrowLeft' ||
-			event.key === 'ArrowRight'
-		) {
-			event.preventDefault();
-			const step = event.shiftKey ? 50 : 20;
-			switch (event.key) {
-				case 'ArrowUp':
-					canvasOffset.y += step;
-					break;
-				case 'ArrowDown':
-					canvasOffset.y -= step;
-					break;
-				case 'ArrowLeft':
-					canvasOffset.x += step;
-					break;
-				case 'ArrowRight':
-					canvasOffset.x -= step;
-					break;
-			}
-			updateCanvasTransform();
-		}
+		handleCanvasKeyDown(event, canvasState);
+		updateCanvasTransform(canvasContainer, canvasState);
 	}
 
 	function handleWheel(event: WheelEvent) {
-		event.preventDefault();
+		handleCanvasWheel(event, canvasWrapper, canvasState);
+		updateCanvasTransform(canvasContainer, canvasState);
+	}
 
-		// Zoom with Ctrl+Wheel or just Wheel
-		const delta = event.deltaY > 0 ? 0.9 : 1.1;
-		const newZoom = Math.max(minZoom, Math.min(maxZoom, zoom * delta));
-
-		if (newZoom !== zoom) {
-			// Get the viewport bounds (canvasWrapper, not the transformed container)
-			const rect = canvasWrapper.getBoundingClientRect();
-
-			// Calculate mouse position relative to the viewport
-			const mouseX = event.clientX - rect.left;
-			const mouseY = event.clientY - rect.top;
-
-			// Calculate the world position of the mouse before zoom
-			const worldMouseX = (mouseX - canvasOffset.x) / zoom;
-			const worldMouseY = (mouseY - canvasOffset.y) / zoom;
-
-			// Update zoom
-			zoom = newZoom;
-
-			// Calculate new offset to keep mouse position fixed in the viewport
-			canvasOffset.x = mouseX - worldMouseX * zoom;
-			canvasOffset.y = mouseY - worldMouseY * zoom;
-
-			updateCanvasTransform();
+	function handleZoomIn() {
+		if (zoomIn(canvasState)) {
+			updateCanvasTransform(canvasContainer, canvasState);
 		}
 	}
 
-	function updateCanvasTransform() {
-		canvasContainer.style.transform = `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${zoom})`;
-	}
-
-	function zoomIn() {
-		const newZoom = Math.min(maxZoom, zoom * 1.2);
-		if (newZoom !== zoom) {
-			zoom = newZoom;
-			updateCanvasTransform();
+	function handleZoomOut() {
+		if (zoomOut(canvasState)) {
+			updateCanvasTransform(canvasContainer, canvasState);
 		}
 	}
 
-	function zoomOut() {
-		const newZoom = Math.max(minZoom, zoom / 1.2);
-		if (newZoom !== zoom) {
-			zoom = newZoom;
-			updateCanvasTransform();
-		}
-	}
-
-	function resetView() {
-		// Calculate the center of all nodes including visible blank nodes
-		const visibleBlankNodes = [];
-		if (!nodes.some((n) => n.isStartNode)) visibleBlankNodes.push(blankStartNode);
-		if (!nodes.some((n) => n.isEndNode)) visibleBlankNodes.push(blankEndNode);
-		const allNodes = [...visibleBlankNodes, ...nodes];
-
-		if (allNodes.length > 0) {
-			const minX = Math.min(...allNodes.map((n) => n.position.x));
-			const maxX = Math.max(...allNodes.map((n) => n.position.x));
-			const minY = Math.min(...allNodes.map((n) => n.position.y));
-			const maxY = Math.max(...allNodes.map((n) => n.position.y));
-
-			const centerX = (minX + maxX) / 2;
-			const centerY = (minY + maxY) / 2;
-
-			// Get the canvas viewport dimensions
-			const viewportRect = canvasWrapper?.getBoundingClientRect();
-			if (viewportRect) {
-				// Center the view on the calculated center of nodes
-				canvasOffset.x = viewportRect.width / 2 - centerX + 5000;
-				canvasOffset.y = viewportRect.height / 2 - centerY + 5000;
-			} else {
-				// Fallback to center on blank nodes
-				initializeCanvasOffset();
-			}
-		} else {
-			// Fallback to center on blank nodes
-			initializeCanvasOffset();
-		}
-
-		zoom = 0.8;
-		updateCanvasTransform();
+	function handleResetView() {
+		resetView(nodes, blankStartNode, blankEndNode, canvasWrapper, canvasState);
+		updateCanvasTransform(canvasContainer, canvasState);
 	}
 
 	// Check dark mode on mount and when it changes
 	if (typeof window !== 'undefined') {
 		const observer = new MutationObserver(() => {
-			checkDarkMode();
+			canvasState.isDark = checkDarkMode();
 		});
 
 		const mainContainer = document.querySelector('.main-container');
@@ -190,11 +99,11 @@
 			observer.observe(mainContainer, { attributes: true });
 		}
 
-		checkDarkMode();
+		canvasState.isDark = checkDarkMode();
 
 		// Initialize canvas offset after a short delay to ensure DOM is ready
 		setTimeout(() => {
-			resetView();
+			handleResetView();
 		}, 100);
 	}
 
@@ -202,144 +111,23 @@
 	$: selectedNode = pathState.selectedNodeId ? pathState.nodes.get(pathState.selectedNodeId) : null;
 
 	// Create blank start and end nodes - separated more for better visibility
-	$: blankStartNode = {
-		id: 'blank-start',
-		url: 'Enter start URL',
-		linkSummary: null,
-		error: '',
-		isLoading: false,
-		level: -1,
-		position: { x: 4800, y: 5000 },
-		isStartNode: true,
-		isEndNode: false
-	};
-
-	$: blankEndNode = {
-		id: 'blank-end',
-		url: 'Enter end URL',
-		linkSummary: null,
-		error: '',
-		isLoading: false,
-		level: -1,
-		position: { x: 5700, y: 5000 },
-		isStartNode: false,
-		isEndNode: true
-	};
+	$: blankStartNode = createBlankStartNode();
+	$: blankEndNode = createBlankEndNode();
 
 	// Calculate connection points and preview positions
-	$: connections = nodes
-		.filter((node) => node.parentId)
-		.map((node) => {
-			let parentPosition: { x: number; y: number };
-			let parentId: string;
-			let parentUrl: string;
-
-			if (node.parentId === 'blank-start') {
-				parentPosition = blankStartNode.position;
-				parentId = 'blank-start';
-				parentUrl = blankStartNode.url;
-			} else if (node.parentId === 'blank-end') {
-				parentPosition = blankEndNode.position;
-				parentId = 'blank-end';
-				parentUrl = blankEndNode.url;
-			} else if (node.parentId) {
-				const parentNode = pathState.nodes.get(node.parentId);
-				if (!parentNode) return null;
-				parentPosition = parentNode.position;
-				parentId = parentNode.id;
-				parentUrl = parentNode.url;
-			} else {
-				// This shouldn't happen with proper parentId setup, but handle gracefully
-				return null;
-			}
-
-			// Connect to the center of the level indicator
-			const headerPadding = 12; // 0.75rem = 12px
-			const levelIndicatorHeight = 24; // Approximate height including padding
-			const levelIndicatorWidth = 40; // Approximate width for level indicators
-
-			// Start connection from center of parent's level indicator
-			const startX = parentPosition.x + headerPadding + levelIndicatorWidth / 2;
-			const startY = parentPosition.y + headerPadding + levelIndicatorHeight / 2;
-
-			// End connection at center of child's level indicator
-			const endX = node.position.x + headerPadding + levelIndicatorWidth / 2;
-			const endY = node.position.y + headerPadding + levelIndicatorHeight / 2;
-
-			// Calculate midpoint for arrow head positioning
-			const midX = (startX + endX) / 2;
-			const midY = (startY + endY) / 2;
-
-			// Screenshot preview positioned to the left of the child node, aligned with top
-			const previewX = node.position.x - 320; // 280px width + 40px gap
-			const previewY = node.position.y;
-
-			// Determine if this connection is on the found path
-			let isInPath = false;
-			if (
-				autonomousProgress &&
-				autonomousProgress.foundPath &&
-				autonomousProgress.foundPath.length > 1
-			) {
-				const idx = autonomousProgress.foundPath.indexOf(parentUrl);
-				if (idx !== -1 && autonomousProgress.foundPath[idx + 1] === node.url) {
-					isInPath = true;
-				}
-			}
-
-			// Determine connection origin by tracing the chain
-			const connectionOrigin = getConnectionOrigin(node.id);
-			const isStartConnection = connectionOrigin === 'start';
-			const isEndConnection = connectionOrigin === 'end';
-
-			return {
-				nodeId: node.id,
-				parentId,
-				startX,
-				startY,
-				endX,
-				endY,
-				midX,
-				midY,
-				previewPosition: { x: previewX, y: previewY },
-				url: node.url,
-				isStartConnection,
-				isEndConnection,
-				isInPath
-			};
-		})
-		.filter((conn): conn is NonNullable<typeof conn> => conn !== null);
-
-	// Function to determine if a node ultimately originates from start or end by tracing parent chain
-	function getConnectionOrigin(nodeId: string): 'start' | 'end' | 'none' {
-		let currentNodeId = nodeId;
-		let visited = new Set<string>(); // Prevent infinite loops
-
-		while (currentNodeId && !visited.has(currentNodeId)) {
-			visited.add(currentNodeId);
-
-			if (currentNodeId === 'blank-start') return 'start';
-			if (currentNodeId === 'blank-end') return 'end';
-
-			const node = pathState.nodes.get(currentNodeId);
-			if (!node) break;
-
-			// Check if this node itself is a start or end node
-			if (node.isStartNode) return 'start';
-			if (node.isEndNode) return 'end';
-
-			if (!node.parentId) break;
-			currentNodeId = node.parentId;
-		}
-
-		return 'none';
-	}
+	$: connections = calculateConnections(
+		nodes,
+		pathState,
+		blankStartNode,
+		blankEndNode,
+		autonomousProgress
+	);
 
 	// Sort nodes by level for proper z-index layering
 	$: sortedNodes = [...nodes].sort((a, b) => a.level - b.level);
 </script>
 
-<div class="canvas-wrapper" class:dark={isDark}>
+<div class="canvas-wrapper" class:dark={canvasState.isDark}>
 	<div
 		bind:this={canvasWrapper}
 		class="canvas-viewport"
@@ -365,14 +153,14 @@
 						stroke={conn.isInPath
 							? '#065f46'
 							: conn.isStartConnection
-								? isDark
+								? canvasState.isDark
 									? '#3b82f6'
 									: '#1d4ed8'
 								: conn.isEndConnection
-									? isDark
+									? canvasState.isDark
 										? '#10b981'
 										: '#047857'
-									: isDark
+									: canvasState.isDark
 										? '#9ca3af'
 										: '#6b7280'}
 						stroke-width={conn.isInPath
@@ -399,14 +187,14 @@
 						stroke={conn.isInPath
 							? '#065f46'
 							: conn.isStartConnection
-								? isDark
+								? canvasState.isDark
 									? '#3b82f6'
 									: '#1d4ed8'
 								: conn.isEndConnection
-									? isDark
+									? canvasState.isDark
 										? '#10b981'
 										: '#047857'
-									: isDark
+									: canvasState.isDark
 										? '#9ca3af'
 										: '#6b7280'}
 						stroke-width={conn.isInPath
@@ -428,7 +216,7 @@
 						orient="auto"
 						markerUnits="userSpaceOnUse"
 					>
-						<polygon points="0 0, 20 8, 0 16" fill={isDark ? '#9ca3af' : '#6b7280'} />
+						<polygon points="0 0, 20 8, 0 16" fill={canvasState.isDark ? '#9ca3af' : '#6b7280'} />
 					</marker>
 					<marker
 						id="arrowhead-start"
@@ -439,7 +227,7 @@
 						orient="auto"
 						markerUnits="userSpaceOnUse"
 					>
-						<polygon points="0 0, 24 9, 0 18" fill={isDark ? '#3b82f6' : '#1d4ed8'} />
+						<polygon points="0 0, 24 9, 0 18" fill={canvasState.isDark ? '#3b82f6' : '#1d4ed8'} />
 					</marker>
 					<marker
 						id="arrowhead-end"
@@ -450,7 +238,7 @@
 						orient="auto"
 						markerUnits="userSpaceOnUse"
 					>
-						<polygon points="0 0, 24 9, 0 18" fill={isDark ? '#10b981' : '#047857'} />
+						<polygon points="0 0, 24 9, 0 18" fill={canvasState.isDark ? '#10b981' : '#047857'} />
 					</marker>
 					<marker
 						id="arrowhead-green"
@@ -470,7 +258,7 @@
 			{#each connections as conn}
 				<WebsitePreview
 					url={conn.url}
-					{isDark}
+					isDark={canvasState.isDark}
 					position={conn.previewPosition}
 					isVisible={true}
 					isInPath={autonomousProgress &&
@@ -487,7 +275,7 @@
 			{#each nodes.filter((n) => n.isStartNode) as startNode}
 				<WebsitePreview
 					url={startNode.url}
-					{isDark}
+					isDark={canvasState.isDark}
 					position={{ x: startNode.position.x - 320, y: startNode.position.y }}
 					isVisible={true}
 					isInPath={true}
@@ -500,7 +288,7 @@
 			{#each nodes.filter((n) => n.isEndNode) as endNode}
 				<WebsitePreview
 					url={endNode.url}
-					{isDark}
+					isDark={canvasState.isDark}
 					position={{ x: endNode.position.x - 320, y: endNode.position.y }}
 					isVisible={true}
 					isInPath={true}
@@ -513,7 +301,7 @@
 			{#if !nodes.some((n) => n.isStartNode)}
 				<PathNode
 					node={blankStartNode}
-					{isDark}
+					isDark={canvasState.isDark}
 					isSelected={false}
 					onSelect={() => {}}
 					onLinkClick={() => {}}
@@ -524,7 +312,7 @@
 			{#if !nodes.some((n) => n.isEndNode)}
 				<PathNode
 					node={blankEndNode}
-					{isDark}
+					isDark={canvasState.isDark}
 					isSelected={false}
 					onSelect={() => {}}
 					onLinkClick={() => {}}
@@ -537,7 +325,7 @@
 			{#each sortedNodes as node (node.id)}
 				<PathNode
 					{node}
-					{isDark}
+					isDark={canvasState.isDark}
 					isSelected={node.id === pathState.selectedNodeId}
 					onSelect={() => onNodeSelect(node.id)}
 					onLinkClick={(linkUrl: string) => onLinkClick(node.id, linkUrl)}
@@ -548,7 +336,7 @@
 					autonomousProgress.foundPath.length > 0
 						? autonomousProgress.foundPath.includes(node.url)
 						: true}
-					connectionOrigin={getConnectionOrigin(node.id)}
+					connectionOrigin={getConnectionOrigin(node.id, pathState)}
 				/>
 			{/each}
 		</div>
@@ -559,23 +347,27 @@
 		<div class="zoom-controls">
 			<button
 				class="control-button"
-				class:dark={isDark}
-				on:click={zoomOut}
-				disabled={zoom <= minZoom}
+				class:dark={canvasState.isDark}
+				on:click={handleZoomOut}
+				disabled={canvasState.zoom <= ZOOM_LIMITS.min}
 			>
 				−
 			</button>
-			<span class="zoom-level" class:dark={isDark}>{Math.round(zoom * 100)}%</span>
+			<span class="zoom-level" class:dark={canvasState.isDark}
+				>{Math.round(canvasState.zoom * 100)}%</span
+			>
 			<button
 				class="control-button"
-				class:dark={isDark}
-				on:click={zoomIn}
-				disabled={zoom >= maxZoom}
+				class:dark={canvasState.isDark}
+				on:click={handleZoomIn}
+				disabled={canvasState.zoom >= ZOOM_LIMITS.max}
 			>
 				+
 			</button>
 		</div>
-		<button class="control-button" class:dark={isDark} on:click={resetView}> Reset View </button>
+		<button class="control-button" class:dark={canvasState.isDark} on:click={handleResetView}>
+			Reset View
+		</button>
 	</div>
 </div>
 

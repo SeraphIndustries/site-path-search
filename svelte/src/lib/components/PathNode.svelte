@@ -3,6 +3,16 @@
 	import LinkCard from './LinkCard.svelte';
 	import ErrorDisplay from './ErrorDisplay.svelte';
 
+	import {
+		createNodeInteractionState,
+		toggleExpanded,
+		showMoreLinks,
+		handleKeyboardInteraction,
+		handleWheelScroll,
+		getDisplayedLinks,
+		type NodeInteractionState
+	} from '$lib/utils/nodeInteraction';
+
 	export let node: PathNodeType;
 	export let isSelected: boolean;
 	export let onSelect: () => void;
@@ -12,11 +22,9 @@
 	export let isInPath: boolean = false;
 	export let connectionOrigin: 'start' | 'end' | 'none' = 'none';
 
-	let isExpanded = true;
+	let interactionState: NodeInteractionState = createNodeInteractionState();
 	let isDragging = false;
 	let dragStart = { x: 0, y: 0 };
-	let showAllLinks = false;
-	let linksToShow = 10;
 
 	function handleMouseDown(event: MouseEvent) {
 		// Only start dragging if clicking on the header or the node itself (not on buttons or content)
@@ -49,10 +57,7 @@
 	}
 
 	function handleKeyDown(event: KeyboardEvent) {
-		if (event.key === 'Enter' || event.key === ' ') {
-			event.preventDefault();
-			onSelect();
-		}
+		handleKeyboardInteraction(event, onSelect);
 	}
 
 	// Global mouse move handler for better dragging
@@ -71,11 +76,8 @@
 		isDragging = false;
 	}
 
-	function toggleExpanded() {
-		isExpanded = !isExpanded;
-		if (!isExpanded) {
-			showAllLinks = false; // Reset when collapsing
-		}
+	function handleToggleExpanded() {
+		toggleExpanded(interactionState);
 	}
 
 	function handleLinkClick(linkUrl: string) {
@@ -83,15 +85,11 @@
 	}
 
 	function handleShowMore() {
-		showAllLinks = true;
+		showMoreLinks(interactionState);
 	}
 
 	function handleWheel(event: WheelEvent) {
-		// Prevent the event from bubbling up to the canvas
-		event.stopPropagation();
-
-		const linksGrid = event.currentTarget as HTMLElement;
-		linksGrid.scrollTop += event.deltaY;
+		handleWheelScroll(event);
 	}
 
 	// Set up global event listeners when dragging starts
@@ -103,9 +101,11 @@
 		window.removeEventListener('mouseup', handleGlobalMouseUp);
 	}
 
-	$: displayedLinks = showAllLinks
-		? node.linkSummary?.regular_links || []
-		: (node.linkSummary?.regular_links || []).slice(0, linksToShow);
+	$: displayedLinks = getDisplayedLinks(
+		node.linkSummary?.regular_links,
+		interactionState.showAllLinks,
+		interactionState.linksToShow
+	);
 
 	// Use the node properties for color coding
 	$: isStartNode = node.isStartNode;
@@ -115,7 +115,7 @@
 <div
 	class="path-node {isInPath ? 'in-path' : 'not-in-path'}"
 	class:selected={isSelected}
-	class:expanded={isExpanded}
+	class:expanded={interactionState.isExpanded}
 	class:dark={isDark}
 	class:start-node={isStartNode}
 	class:end-node={isEndNode}
@@ -140,14 +140,14 @@
 			>
 			<span class="node-url">{node.url}</span>
 		</div>
-		{#if node.level >= 0}
-			<button class="expand-button" on:click|stopPropagation={toggleExpanded}>
-				{isExpanded ? '−' : '+'}
+		{#if node.level >= 0 || (node.level < 0 && (node.linkSummary || node.isLoading || node.error))}
+			<button class="expand-button" on:click|stopPropagation={handleToggleExpanded}>
+				{interactionState.isExpanded ? '−' : '+'}
 			</button>
 		{/if}
 	</div>
 
-	{#if node.level < 0}
+	{#if node.level < 0 && !node.linkSummary && !node.isLoading && !node.error}
 		<div class="blank-node-content">
 			<span class="blank-message">
 				{isStartNode
@@ -162,7 +162,7 @@
 		</div>
 	{:else if node.error}
 		<ErrorDisplay error={node.error} />
-	{:else if node.linkSummary && isExpanded}
+	{:else if node.linkSummary && interactionState.isExpanded}
 		<div class="node-content">
 			<div class="summary-stats">
 				<div class="stat">
@@ -188,9 +188,9 @@
 								<span class="link-text">{link}</span>
 							</button>
 						{/each}
-						{#if !showAllLinks && node.linkSummary.regular_links.length > linksToShow}
+						{#if !interactionState.showAllLinks && node.linkSummary.regular_links.length > interactionState.linksToShow}
 							<button class="more-links" on:click={handleShowMore}>
-								+{node.linkSummary.regular_links.length - linksToShow} more
+								+{node.linkSummary.regular_links.length - interactionState.linksToShow} more
 							</button>
 						{/if}
 					</div>
