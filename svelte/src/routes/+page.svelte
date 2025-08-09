@@ -34,7 +34,7 @@
 			<DarkModeToggle />
 		</div>
 
-		<PathFinder />
+		<PathFinder {isDark} />
 	</div>
 </main>
 

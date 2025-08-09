@@ -13,6 +13,8 @@
 	} from '$lib/utils/pathStateManager';
 	import { generateNodeId, calculateNodePosition } from '$lib/utils/nodePositioning';
 
+	export let isDark = false;
+
 	let pathState: PathState = createInitialPathState();
 
 	let isLoading = false;
@@ -158,13 +160,44 @@
 </script>
 
 <div class="pathfinder-container">
-	<div class="mode-toggle">
-		<label>
-			<input type="radio" bind:group={mode} value="manual" /> Manual
-		</label>
-		<label>
-			<input type="radio" bind:group={mode} value="autonomous" /> Autonomous
-		</label>
+	<div class="mode-selector" class:dark={isDark}>
+		<div class="mode-selector-header">
+			<h3 class="mode-selector-title">Path Finding Mode</h3>
+			<button
+				class="clear-path-button"
+				class:dark={isDark}
+				on:click={handleClearPath}
+				title="Clear current path"
+			>
+				🗑️ Clear Path
+			</button>
+		</div>
+		<div class="mode-options">
+			<label class="mode-option" class:active={mode === 'manual'} class:dark={isDark}>
+				<input type="radio" bind:group={mode} value="manual" class="mode-radio" />
+				<div class="mode-content">
+					<div class="mode-icon">🔧</div>
+					<div class="mode-text">
+						<span class="mode-name">Manual</span>
+						<span class="mode-description"
+							>Click through links step-by-step to build your path manually</span
+						>
+					</div>
+				</div>
+			</label>
+			<label class="mode-option" class:active={mode === 'autonomous'} class:dark={isDark}>
+				<input type="radio" bind:group={mode} value="autonomous" class="mode-radio" />
+				<div class="mode-content">
+					<div class="mode-icon">🤖</div>
+					<div class="mode-text">
+						<span class="mode-name">Autonomous</span>
+						<span class="mode-description"
+							>AI automatically finds the shortest path between URLs</span
+						>
+					</div>
+				</div>
+			</label>
+		</div>
 	</div>
 
 	{#if mode === 'manual'}
@@ -176,7 +209,7 @@
 			onAnalyzeStart={handleAnalyzeStartUrl}
 			onAnalyzeEnd={handleAnalyzeEndUrl}
 		/>
-		<button on:click={handleClearPath}>Clear</button>
+
 		<PathCanvas
 			{pathState}
 			onNodeSelect={selectNodeWrapper}
@@ -247,10 +280,6 @@
 			{autonomousProgress}
 		/>
 	{/if}
-
-	<div class="controls">
-		<button on:click={handleClearPath} class="clear-button"> Clear Path </button>
-	</div>
 </div>
 
 <style>
@@ -259,27 +288,6 @@
 		height: 100%;
 		display: flex;
 		flex-direction: column;
-	}
-
-	.controls {
-		margin-bottom: 1rem;
-		display: flex;
-		gap: 1rem;
-	}
-
-	.clear-button {
-		padding: 0.5rem 1rem;
-		background: #ef4444;
-		color: white;
-		border: none;
-		border-radius: 0.375rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: background-color 0.2s;
-	}
-
-	.clear-button:hover {
-		background: #dc2626;
 	}
 
 	.autonomous-controls {
@@ -383,5 +391,200 @@
 		margin-top: 0.5rem;
 		font-size: 0.9rem;
 		color: #991b1b;
+	}
+
+	/* Mode Selector Styles */
+	.mode-selector {
+		margin-bottom: 2rem;
+		background: white;
+		border: 2px solid #e5e7eb;
+		border-radius: 1rem;
+		padding: 1.5rem;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+		transition: all 0.2s ease;
+	}
+
+	.mode-selector.dark {
+		background: #1f2937;
+		border-color: #374151;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+	}
+
+	.mode-selector-header {
+		margin-bottom: 1rem;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.mode-selector-title {
+		margin: 0;
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #374151;
+	}
+
+	.mode-selector.dark .mode-selector-title {
+		color: #f3f4f6;
+	}
+
+	.clear-path-button {
+		padding: 0.5rem 1rem;
+		background: #ef4444;
+		color: white;
+		border: none;
+		border-radius: 0.5rem;
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.clear-path-button:hover {
+		background: #dc2626;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 8px rgba(239, 68, 68, 0.2);
+	}
+
+	.clear-path-button:active {
+		transform: translateY(0);
+	}
+
+	.clear-path-button.dark {
+		background: #7f1d1d;
+		border: 1px solid #991b1b;
+	}
+
+	.clear-path-button.dark:hover {
+		background: #991b1b;
+		box-shadow: 0 4px 8px rgba(127, 29, 29, 0.3);
+	}
+
+	.mode-options {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+	}
+
+	.mode-option {
+		position: relative;
+		cursor: pointer;
+		border: 2px solid #e5e7eb;
+		border-radius: 0.75rem;
+		padding: 1rem;
+		background: #f9fafb;
+		transition: all 0.2s ease;
+		display: block;
+	}
+
+	.mode-option:hover {
+		border-color: #3b82f6;
+		background: #eff6ff;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+	}
+
+	.mode-option.active {
+		border-color: #3b82f6;
+		background: #eff6ff;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+	}
+
+	.mode-option.dark {
+		background: #374151;
+		border-color: #4b5563;
+	}
+
+	.mode-option.dark:hover {
+		border-color: #60a5fa;
+		background: #1e3a8a;
+	}
+
+	.mode-option.dark.active {
+		border-color: #60a5fa;
+		background: #1e3a8a;
+		box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+	}
+
+	.mode-radio {
+		position: absolute;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.mode-content {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.75rem;
+	}
+
+	.mode-icon {
+		font-size: 1.5rem;
+		line-height: 1;
+		margin-top: 0.125rem;
+	}
+
+	.mode-text {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.mode-name {
+		font-size: 1rem;
+		font-weight: 600;
+		color: #1f2937;
+		line-height: 1.2;
+	}
+
+	.mode-option.dark .mode-name {
+		color: #f3f4f6;
+	}
+
+	.mode-description {
+		font-size: 0.875rem;
+		color: #6b7280;
+		line-height: 1.3;
+	}
+
+	.mode-option.dark .mode-description {
+		color: #d1d5db;
+	}
+
+	/* Responsive adjustments */
+	@media (max-width: 768px) {
+		.mode-options {
+			grid-template-columns: 1fr;
+		}
+
+		.mode-content {
+			align-items: center;
+		}
+
+		.mode-text {
+			gap: 0.125rem;
+		}
+
+		.mode-name {
+			font-size: 0.9rem;
+		}
+
+		.mode-description {
+			font-size: 0.8rem;
+		}
+
+		.mode-selector-header {
+			flex-direction: column;
+			gap: 0.75rem;
+			align-items: flex-start;
+		}
+
+		.clear-path-button {
+			align-self: stretch;
+			justify-content: center;
+		}
 	}
 </style>

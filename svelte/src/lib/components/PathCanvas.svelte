@@ -64,28 +64,33 @@
 	function handleKeyDown(event: KeyboardEvent) {
 		handleCanvasKeyDown(event, canvasState);
 		updateCanvasTransform(canvasContainer, canvasState);
+		canvasState = { ...canvasState }; // Trigger reactivity
 	}
 
 	function handleWheel(event: WheelEvent) {
 		handleCanvasWheel(event, canvasWrapper, canvasState);
 		updateCanvasTransform(canvasContainer, canvasState);
+		canvasState = { ...canvasState }; // Trigger reactivity
 	}
 
 	function handleZoomIn() {
 		if (zoomIn(canvasState)) {
 			updateCanvasTransform(canvasContainer, canvasState);
+			canvasState = { ...canvasState }; // Trigger reactivity
 		}
 	}
 
 	function handleZoomOut() {
 		if (zoomOut(canvasState)) {
 			updateCanvasTransform(canvasContainer, canvasState);
+			canvasState = { ...canvasState }; // Trigger reactivity
 		}
 	}
 
 	function handleResetView() {
 		resetView(nodes, blankStartNode, blankEndNode, canvasWrapper, canvasState);
 		updateCanvasTransform(canvasContainer, canvasState);
+		canvasState = { ...canvasState }; // Trigger reactivity
 	}
 
 	// Check dark mode on mount and when it changes
