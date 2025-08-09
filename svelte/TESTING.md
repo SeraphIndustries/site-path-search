@@ -6,12 +6,11 @@ This document provides comprehensive guidance on the testing strategy and implem
 
 1. [Testing Overview](#testing-overview)
 2. [Unit Tests](#unit-tests)
-3. [E2E Tests](#e2e-tests)
-4. [Storybook Tests](#storybook-tests)
-5. [Running Tests](#running-tests)
-6. [Test Coverage](#test-coverage)
-7. [Writing New Tests](#writing-new-tests)
-8. [CI/CD Integration](#cicd-integration)
+3. [Storybook Tests](#storybook-tests)
+4. [Running Tests](#running-tests)
+5. [Test Coverage](#test-coverage)
+6. [Writing New Tests](#writing-new-tests)
+7. [CI/CD Integration](#cicd-integration)
 
 ## Testing Overview
 
@@ -19,7 +18,6 @@ Our testing strategy follows the testing pyramid approach:
 
 - **Unit Tests**: Test individual functions and utilities in isolation
 - **Component Tests**: Test Svelte components with Vitest and browser testing
-- **E2E Tests**: Test complete user workflows with Playwright
 - **Visual Tests**: Test UI consistency with Storybook
 - **Accessibility Tests**: Ensure WCAG compliance
 - **Performance Tests**: Verify app performance under various conditions
@@ -80,35 +78,30 @@ describe('node analysis', () => {
 });
 ```
 
-## E2E Tests
+## Storybook Tests
 
 ### Test Categories
 
-#### 1. Core Functionality Tests (`path-finding.test.ts`)
+#### 1. Component Stories
 
-- URL input validation
-- Node creation and linking
-- Canvas interactions (zoom, pan, drag)
-- Mode switching (manual/autonomous)
-- Path clearing and reset
+- Interactive component documentation
+- Component state variations
+- Theme switching verification
+- Accessibility testing via addon-a11y
 
-#### 2. Accessibility Tests (`accessibility.test.ts`)
+#### 2. Form Component Stories
 
-- WCAG compliance checking
-- Keyboard navigation
-- Screen reader compatibility
-- Focus management
-- Color contrast validation
+- Input validation testing
+- Error state handling
+- Loading state verification
 
-#### 3. Performance Tests (`performance.test.ts`)
+#### 3. Visual Testing
 
-- Load time measurements
-- Large dataset handling
-- Canvas performance under stress
-- Memory usage monitoring
-- Network delay handling
+- Component rendering consistency
+- Layout verification across screen sizes
+- Dark/light theme compatibility
 
-### Key E2E Testing Patterns
+### Key Component Testing Patterns
 
 #### 1. API Mocking
 
@@ -221,17 +214,17 @@ npm run test:unit
 # Run unit tests in watch mode
 npm run test:unit -- --watch
 
-# Run all tests (unit + e2e)
+# Run all tests (unit only)
 npm run test
 
-# Run E2E tests
-npm run test:e2e
+# Run unit tests in watch mode
+npm run test:unit
 
-# Run E2E tests in headed mode (visible browser)
-npm run test:e2e -- --headed
+# Run Storybook development server
+npm run storybook
 
-# Run specific E2E test file
-npm run test:e2e -- path-finding.test.ts
+# Build Storybook for production
+npm run build-storybook
 
 # Start Storybook for visual testing
 npm run storybook
@@ -239,8 +232,6 @@ npm run storybook
 # Build Storybook for production
 npm run build-storybook
 
-# Run Storybook test runner
-npm run test-storybook
 ```
 
 ### Test Configuration
@@ -264,19 +255,14 @@ test: {
 }
 ```
 
-#### Playwright Configuration
+#### Storybook Configuration
 
 ```typescript
-// playwright.config.ts
-export default defineConfig({
-	testDir: './e2e',
-	timeout: 30000,
-	use: {
-		baseURL: 'http://localhost:4173',
-		screenshot: 'only-on-failure',
-		video: 'retain-on-failure'
-	}
-});
+// .storybook/main.ts
+export default {
+	stories: ['../src/**/*.stories.@(js|jsx|ts|tsx|svelte)'],
+	addons: ['@storybook/addon-docs', '@storybook/addon-a11y', '@storybook/addon-vitest']
+};
 ```
 
 ## Test Coverage
@@ -285,7 +271,6 @@ export default defineConfig({
 
 - **Unit Tests**: >90% line coverage for utilities
 - **Component Tests**: All major component states tested
-- **E2E Tests**: All critical user paths covered
 - **Accessibility**: WCAG 2.1 AA compliance
 
 ### Coverage Reports
@@ -335,26 +320,7 @@ describe('FeatureName', () => {
 });
 ```
 
-#### 2. E2E Test Structure
-
-```typescript
-test.describe('Feature Name', () => {
-	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		// Setup common state
-	});
-
-	test('should complete main user flow', async ({ page }) => {
-		// Test happy path
-	});
-
-	test('should handle error conditions', async ({ page }) => {
-		// Test error scenarios
-	});
-});
-```
-
-#### 3. Storybook Story Structure
+#### 2. Storybook Story Structure
 
 ```svelte
 <script module>
@@ -405,15 +371,7 @@ test.describe('Feature Name', () => {
 - Test both success and failure cases
 - Verify state changes accurately
 
-#### 2. E2E Tests
-
-- Test real user workflows
-- Use data-testid attributes for stable selectors
-- Mock API responses for consistent testing
-- Include accessibility checks
-- Test on different viewport sizes
-
-#### 3. Storybook Stories
+#### 2. Storybook Stories
 
 - Cover all component states
 - Include interactive examples
@@ -441,9 +399,6 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit -- --coverage
-
-      - name: Run E2E tests
-        run: npm run test:e2e
 
       - name: Build Storybook
         run: npm run build-storybook
@@ -480,7 +435,6 @@ jobs:
 When adding new features:
 
 1. Write unit tests for new utilities
-2. Add E2E tests for new user workflows
-3. Create Storybook stories for new components
-4. Update this documentation as needed
-5. Ensure all tests pass before submitting PR
+2. Create Storybook stories for new components
+3. Update this documentation as needed
+4. Ensure all tests pass before submitting PR

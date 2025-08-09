@@ -53,12 +53,16 @@
 					class="url-input-field"
 					class:dark={isDark}
 					disabled={isLoading}
+					aria-label="Start URL input field"
+					data-testid="start-url-input"
 				/>
 			</div>
 			<button
 				on:click={onAnalyzeStart}
 				disabled={isLoading || !startUrl.trim()}
 				class="analyze-button start-button"
+				aria-label="Analyze start URL"
+				data-testid="analyze-start-button"
 			>
 				{#if isLoading}
 					<span class="loading-content">
@@ -84,12 +88,16 @@
 					class="url-input-field"
 					class:dark={isDark}
 					disabled={isLoading}
+					aria-label="End URL input field"
+					data-testid="end-url-input"
 				/>
 			</div>
 			<button
 				on:click={onAnalyzeEnd}
 				disabled={isLoading || !endUrl.trim()}
 				class="analyze-button end-button"
+				aria-label="Analyze end URL"
+				data-testid="analyze-end-button"
 			>
 				{#if isLoading}
 					<span class="loading-content">

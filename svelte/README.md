@@ -215,7 +215,7 @@ Advanced link discovery interface with filtering, sorting, and bulk analysis cap
 ### Testing & Quality Assurance
 
 - **Vitest 3.2**: Fast unit testing with browser environment support
-- **Playwright 1.49**: End-to-end testing across multiple browsers
+- **Storybook 9.1**: Component testing and documentation
 - **Storybook 9.0**: Component development and visual testing
 
 ## 🧪 Testing Strategy
@@ -236,8 +236,8 @@ graph LR
             F --> G[Visual Regression<br/>Screenshot Comparison]
         end
 
-        subgraph "E2E Testing"
-            H[Playwright<br/>Browser Automation] --> I[Real User Workflows<br/>End-to-End Tests]
+        subgraph "Component Testing"
+            H[Storybook<br/>Component Stories] --> I[Component Docs<br/>Visual Testing]
             I --> J[Accessibility Testing<br/>WCAG Compliance]
             J --> K[Performance Testing<br/>Load & Stress Tests]
         end
@@ -293,10 +293,9 @@ npm run test:unit              # Run all unit tests
 npm run test:unit -- --watch   # Watch mode for development
 npm run test:unit -- --coverage # Generate coverage report
 
-# E2E tests
-npm run test:e2e               # Run all E2E tests
-npm run test:e2e -- --headed   # Run with visible browser
-npm run test:e2e -- path-finding.test.ts # Run specific test
+# Storybook development
+npm run storybook              # Start Storybook dev server
+npm run build-storybook        # Build static Storybook
 
 # Storybook
 npm run storybook              # Start Storybook dev server
@@ -385,7 +384,7 @@ svelte/
 │   │   ├── *.stories.svelte     # Component stories
 │   │   └── assets/              # Story assets
 │   └── app.html                 # HTML template
-├── e2e/                         # End-to-end tests
+├── src/stories/                 # Storybook component stories
 │   ├── accessibility.test.ts    # WCAG compliance tests
 │   ├── path-finding.test.ts     # Core functionality tests
 │   └── performance.test.ts      # Performance benchmarks
@@ -395,7 +394,7 @@ svelte/
 │   └── test-runner.ts           # Test runner configuration
 ├── static/                      # Static assets
 ├── coverage/                    # Test coverage reports
-├── playwright.config.ts         # E2E test configuration
+
 ├── svelte.config.js            # SvelteKit configuration
 ├── vite.config.ts              # Vite build configuration
 ├── tsconfig.json               # TypeScript configuration
@@ -444,7 +443,7 @@ npm run check:watch          # Type checking in watch mode
 # Testing
 npm run test                 # Run all tests
 npm run test:unit            # Unit tests only
-npm run test:e2e             # E2E tests only
+npm run storybook            # Component development
 npm run storybook            # Start Storybook
 
 # Maintenance
@@ -457,7 +456,7 @@ npm run prepare              # Prepare SvelteKit
 2. **Add TypeScript types** in `src/lib/types/` if needed
 3. **Write unit tests** for any utility functions
 4. **Create Storybook stories** for visual documentation
-5. **Add E2E tests** for user-facing functionality
+5. **Add Storybook stories** for new components
 6. **Update this README** with component documentation
 
 ### Code Style Guidelines
@@ -610,7 +609,7 @@ npm run preview
 
 - **100% test coverage** for utility functions
 - **Storybook stories** for all components
-- **E2E test coverage** for user workflows
+- **Component documentation** via Storybook
 - **TypeScript strict mode** compliance
 - **Accessibility compliance** verification
 

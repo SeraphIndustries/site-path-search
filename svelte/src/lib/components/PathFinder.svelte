@@ -1,17 +1,16 @@
 <script lang="ts">
-	import URLInput from './URLInput.svelte';
-	import PathCanvas from './PathCanvas.svelte';
-	import type { PathState } from '$lib/types/linkAnalysis';
-	import type { PathNode } from '$lib/types/linkAnalysis';
 	import { LinkAnalysisService } from '$lib/services/linkAnalysisService';
-	import { analyzeStartUrl, analyzeEndUrl, analyzeLinkFromNode } from '$lib/utils/nodeAnalysis';
+	import type { PathNode, PathState } from '$lib/types/linkAnalysis';
+	import { analyzeEndUrl, analyzeLinkFromNode, analyzeStartUrl } from '$lib/utils/nodeAnalysis';
+	import { calculateNodePosition, generateNodeId } from '$lib/utils/nodePositioning';
 	import {
+		clearPath,
 		createInitialPathState,
 		selectNode,
-		updateNodePosition,
-		clearPath
+		updateNodePosition
 	} from '$lib/utils/pathStateManager';
-	import { generateNodeId, calculateNodePosition } from '$lib/utils/nodePositioning';
+	import PathCanvas from './PathCanvas.svelte';
+	import URLInput from './URLInput.svelte';
 
 	export let isDark = false;
 
@@ -27,15 +26,40 @@
 	} = { visited: [], currentPath: [], foundPath: [] };
 	let isAutonomousRunning = false;
 	let autonomousError = '';
+	let validationError = '';
+	let showSuccessMessage = false;
+	let successMessage = '';
 
 	// All utility functions moved to separate modules
 
 	async function handleAnalyzeStartUrl() {
+		validationError = '';
+		showSuccessMessage = false;
+
+		if (!pathState.startUrl.trim()) {
+			validationError = 'No start URL provided';
+			return;
+		}
+
+		// Basic URL validation
+		try {
+			new URL(pathState.startUrl);
+		} catch {
+			validationError = 'Please enter a valid URL (include http:// or https://)';
+			return;
+		}
+
 		isLoading = true;
 		try {
 			const result = await analyzeStartUrl(pathState);
 			if (!result.success) {
-				console.error('Failed to analyze start URL:', result.error);
+				validationError = result.error || 'Failed to analyze start URL';
+			} else {
+				successMessage = 'Start URL analyzed successfully';
+				showSuccessMessage = true;
+				setTimeout(() => {
+					showSuccessMessage = false;
+				}, 3000);
 			}
 		} finally {
 			pathState = { ...pathState }; // Trigger reactivity
@@ -44,11 +68,33 @@
 	}
 
 	async function handleAnalyzeEndUrl() {
+		validationError = '';
+		showSuccessMessage = false;
+
+		if (!pathState.endUrl.trim()) {
+			validationError = 'No end URL provided';
+			return;
+		}
+
+		// Basic URL validation
+		try {
+			new URL(pathState.endUrl);
+		} catch {
+			validationError = 'Please enter a valid URL (include http:// or https://)';
+			return;
+		}
+
 		isLoading = true;
 		try {
 			const result = await analyzeEndUrl(pathState);
 			if (!result.success) {
-				console.error('Failed to analyze end URL:', result.error);
+				validationError = result.error || 'Failed to analyze end URL';
+			} else {
+				successMessage = 'End URL analyzed successfully';
+				showSuccessMessage = true;
+				setTimeout(() => {
+					showSuccessMessage = false;
+				}, 3000);
 			}
 		} finally {
 			pathState = { ...pathState }; // Trigger reactivity
@@ -175,13 +221,20 @@
 				class:dark={isDark}
 				on:click={handleClearPath}
 				title="Clear current path"
+				data-testid="clear-button"
 			>
 				🗑️ Clear Path
 			</button>
 		</div>
 		<div class="mode-options">
 			<label class="mode-option" class:active={mode === 'manual'} class:dark={isDark}>
-				<input type="radio" bind:group={mode} value="manual" class="mode-radio" />
+				<input
+					type="radio"
+					bind:group={mode}
+					value="manual"
+					class="mode-radio"
+					data-testid="manual-mode"
+				/>
 				<div class="mode-content">
 					<div class="mode-icon">🔧</div>
 					<div class="mode-text">
@@ -193,7 +246,13 @@
 				</div>
 			</label>
 			<label class="mode-option" class:active={mode === 'autonomous'} class:dark={isDark}>
-				<input type="radio" bind:group={mode} value="autonomous" class="mode-radio" />
+				<input
+					type="radio"
+					bind:group={mode}
+					value="autonomous"
+					class="mode-radio"
+					data-testid="autonomous-mode"
+				/>
 				<div class="mode-content">
 					<div class="mode-icon">🤖</div>
 					<div class="mode-text">
@@ -217,6 +276,28 @@
 			onAnalyzeEnd={handleAnalyzeEndUrl}
 		/>
 
+		<!-- Validation Error Message -->
+		{#if validationError}
+			<div class="validation-error" data-testid="error-message" role="alert" aria-live="assertive">
+				❌ {validationError}
+			</div>
+		{/if}
+
+		<!-- Success Message -->
+		{#if showSuccessMessage}
+			<div class="success-message" role="status" aria-live="polite">
+				✅ {successMessage}
+			</div>
+		{/if}
+
+		<!-- Loading State -->
+		{#if isLoading}
+			<div class="loading-state" data-loading="true" aria-live="polite">
+				<div class="loading-spinner"></div>
+				<span>Analyzing URL...</span>
+			</div>
+		{/if}
+
 		<PathCanvas
 			{pathState}
 			onNodeSelect={selectNodeWrapper}
@@ -235,18 +316,31 @@
 			onAnalyzeStart={startAutonomousPath}
 			onAnalyzeEnd={startAutonomousPath}
 		/>
+
+		<!-- Validation Error Message -->
+		{#if validationError}
+			<div class="validation-error" data-testid="error-message" role="alert" aria-live="assertive">
+				❌ {validationError}
+			</div>
+		{/if}
 		<div class="autonomous-controls">
 			<button
 				class="start-autonomous-button"
 				on:click={startAutonomousPath}
 				disabled={isAutonomousRunning}
+				data-testid="start-autonomous-button"
 			>
-				{isAutonomousRunning ? 'Finding Path...' : 'Start Autonomous Path'}
+				{isAutonomousRunning ? 'Finding Path...' : 'Find Path'}
 			</button>
 		</div>
 
 		{#if isAutonomousRunning}
-			<div class="progress-indicator">
+			<div
+				class="progress-indicator"
+				data-testid="autonomous-progress"
+				role="status"
+				aria-live="polite"
+			>
 				<p>🔍 Autonomous path finding in progress...</p>
 				<p class="progress-stats">
 					Visited: {autonomousProgress.visited.length} URLs
@@ -255,13 +349,13 @@
 		{/if}
 
 		{#if autonomousError}
-			<div class="error-message">
+			<div class="error-message" data-testid="error-message" role="alert">
 				<p>❌ {autonomousError}</p>
 			</div>
 		{/if}
 
 		{#if autonomousProgress.foundPath.length > 0}
-			<div class="path-found-section">
+			<div class="path-found-section" data-testid="path-highlight" role="status" aria-live="polite">
 				<h3 class="path-found-title">🎯 Path Found!</h3>
 				<div class="path-steps">
 					{#each autonomousProgress.foundPath as url, index}
@@ -592,6 +686,55 @@
 		.clear-path-button {
 			align-self: stretch;
 			justify-content: center;
+		}
+	}
+
+	/* Validation and Success Messages */
+	.validation-error {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #fef2f2;
+		border: 1px solid #fca5a5;
+		border-radius: 0.5rem;
+		color: #dc2626;
+		font-weight: 500;
+	}
+
+	.success-message {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #f0fdf4;
+		border: 1px solid #86efac;
+		border-radius: 0.5rem;
+		color: #16a34a;
+		font-weight: 500;
+	}
+
+	.loading-state {
+		margin-top: 1rem;
+		padding: 1rem;
+		background: #f3f4f6;
+		border: 1px solid #d1d5db;
+		border-radius: 0.5rem;
+		color: #374151;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+	}
+
+	.loading-spinner {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid transparent;
+		border-top: 2px solid currentColor;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
 		}
 	}
 </style>
