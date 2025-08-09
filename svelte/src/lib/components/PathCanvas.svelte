@@ -303,6 +303,7 @@
 			{/each}
 
 			<!-- Blank start and end nodes (only show if no actual start/end nodes exist) -->
+			<!-- Don't show blank start node if there's a node that is both start and end -->
 			{#if !nodes.some((n) => n.isStartNode)}
 				<PathNode
 					node={blankStartNode}
@@ -314,6 +315,7 @@
 					isInPath={true}
 				/>
 			{/if}
+			<!-- Don't show blank end node if there's a node that is both start and end -->
 			{#if !nodes.some((n) => n.isEndNode)}
 				<PathNode
 					node={blankEndNode}

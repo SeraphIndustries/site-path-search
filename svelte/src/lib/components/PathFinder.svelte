@@ -113,10 +113,17 @@
 					if (!nodeIdMap.has(event.url)) {
 						const nodeId = generateNodeId();
 						nodeIdMap.set(event.url, nodeId);
+						const isStartNode = event.url === pathState.startUrl;
+						const isEndNode = event.url === pathState.endUrl;
+
+						// If start and end URLs are the same, don't set a parentId to avoid creating connections
 						const parentId =
-							event.path.length > 1
-								? (nodeIdMap.get(event.path[event.path.length - 2]) ?? 'blank-start')
-								: 'blank-start';
+							isStartNode && isEndNode
+								? undefined
+								: event.path.length > 1
+									? (nodeIdMap.get(event.path[event.path.length - 2]) ?? 'blank-start')
+									: 'blank-start';
+
 						const position = calculateNodePosition(nodeLevel, nodeIdMap.size - 1);
 						const node: PathNode = {
 							id: nodeId,
@@ -127,8 +134,8 @@
 							parentId,
 							level: nodeLevel,
 							position,
-							isStartNode: event.url === pathState.startUrl,
-							isEndNode: event.url === pathState.endUrl
+							isStartNode,
+							isEndNode
 						};
 						pathState.nodes.set(nodeId, node);
 						pathState = { ...pathState };

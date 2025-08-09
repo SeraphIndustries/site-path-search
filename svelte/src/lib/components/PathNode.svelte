@@ -136,7 +136,13 @@
 				class="node-level"
 				class:start-level={isStartNode || connectionOrigin === 'start'}
 				class:end-level={isEndNode || connectionOrigin === 'end'}
-				>{node.level >= 0 ? `L${node.level}` : isStartNode ? 'START' : 'END'}</span
+				>{node.level >= 0
+					? `L${node.level}`
+					: isStartNode && isEndNode
+						? 'START/END'
+						: isStartNode
+							? 'START'
+							: 'END'}</span
 			>
 			<span class="node-url">{node.url}</span>
 		</div>
@@ -150,9 +156,11 @@
 	{#if node.level < 0 && !node.linkSummary && !node.isLoading && !node.error}
 		<div class="blank-node-content">
 			<span class="blank-message">
-				{isStartNode
-					? 'Click "Analyze Start URL" to begin'
-					: 'Click "Analyze End URL" to set destination'}
+				{isStartNode && isEndNode
+					? 'Start and destination are the same URL'
+					: isStartNode
+						? 'Click "Analyze Start URL" to begin'
+						: 'Click "Analyze End URL" to set destination'}
 			</span>
 		</div>
 	{:else if node.isLoading}
@@ -281,6 +289,17 @@
 		border-color: #34d399;
 	}
 
+	/* Combined start and end node styling (when start and end URLs are the same) */
+	.path-node.start-node.end-node {
+		border-color: #f59e0b;
+		background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+	}
+
+	.path-node.dark.start-node.end-node {
+		background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+		border-color: #f59e0b;
+	}
+
 	/* Start chain styling (nodes that ultimately connect to start) */
 	.path-node.start-chain {
 		border-color: #3b82f6;
@@ -352,6 +371,17 @@
 		border-bottom-color: #34d399;
 	}
 
+	/* Combined start and end node header styling */
+	.path-node.start-node.end-node .node-header {
+		background: linear-gradient(135deg, #fde68a 0%, #fcd34d 100%);
+		border-bottom-color: #f59e0b;
+	}
+
+	.path-node.dark.start-node.end-node .node-header {
+		background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+		border-bottom-color: #f59e0b;
+	}
+
 	.path-node.start-chain .node-header {
 		background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
 		border-bottom-color: #3b82f6;
@@ -408,6 +438,15 @@
 
 	.path-node.dark .node-level.end-level {
 		background: #10b981;
+	}
+
+	/* Combined start and end level styling */
+	.path-node.start-node.end-node .node-level {
+		background: #f59e0b;
+	}
+
+	.path-node.dark.start-node.end-node .node-level {
+		background: #f59e0b;
 	}
 
 	.node-url {
