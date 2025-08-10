@@ -4,6 +4,7 @@ This module provides a KagiSearchService class to search for articles containing
 
 import json
 import os
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -13,7 +14,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Then import Kagi client
-from kagiapi import KagiClient
+from kagiapi import KagiClient  # type: ignore
+from pydantic import BaseModel
+
+
+@dataclass
+class SearchResult:
+    title: str
+    url: str
+    snippet: str
+
+
+class KagiSearchRequest(BaseModel):
+    target_url: str
+    limit: int = 10
+    exclude_domain: bool = True
+
+
+class KagiSearchResult(BaseModel):
+    target_url: str
+    results: List[SearchResult]
 
 
 class KagiSearchService:
@@ -39,9 +59,21 @@ class KagiSearchService:
 
         self.client = KagiClient(api_key=api_key)
 
+    def search(self, request: KagiSearchRequest) -> KagiSearchResult:
+        results: List[SearchResult] = self.search_for_link_mentions(
+            target_url=request.target_url,
+            limit=request.limit,
+            exclude_domain=request.exclude_domain,
+        )
+
+        return KagiSearchResult(
+            target_url=request.target_url,
+            results=results,
+        )
+
     def search_for_link_mentions(
         self, target_url: str, limit: int = 10, exclude_domain: bool = True
-    ) -> List[Dict]:
+    ) -> List[SearchResult]:
         """
         Search for articles that mention or link to a specific URL.
 
@@ -51,7 +83,7 @@ class KagiSearchService:
             exclude_domain (bool): Whether to exclude results from the same domain as target_url (default: True)
 
         Returns:
-            List[Dict]: List of search results, each containing title, url, snippet, etc.
+            List[Dict]: List of search results, each containing title, url, snippet
         """
         # Extract domain from target URL for filtering
         target_domain = urlparse(target_url).netloc.lower()
@@ -97,70 +129,13 @@ class KagiSearchService:
                         if self.is_same_domain(result_url, target_url):
                             continue
 
-                    filtered_results.append(result)
+                    simplified_result = SearchResult(
+                        title=result.get("title", ""),
+                        url=result_url,
+                        snippet=result.get("snippet", ""),
+                    )
 
-                    # Stop if we've reached the limit
-                    if len(filtered_results) >= limit:
-                        break
-
-            return filtered_results
-
-        except Exception as e:
-            raise Exception(f"Kagi search failed: {str(e)}")
-
-    def search_for_link_in_articles(
-        self, target_url: str, limit: int = 10, exclude_domain: bool = True
-    ) -> List[Dict]:
-        """
-        Search specifically for articles that contain the target link.
-
-        Args:
-            target_url (str): The URL to search for in articles
-            limit (int): Maximum number of results to return (default: 10)
-            exclude_domain (bool): Whether to exclude results from the same domain (default: True)
-
-        Returns:
-            List[Dict]: List of search results for articles containing the link
-        """
-        # Create a more specific search query for articles
-        search_query = f'link:"{target_url}" OR "{target_url}"'
-
-        try:
-            # Perform the search
-            response = self.client.search(search_query, limit=limit * 2)
-
-            # Parse the JSON response
-            if isinstance(response, str):
-                results_data = json.loads(response)
-            else:
-                results_data = response
-
-            # Extract results from the response structure
-            if isinstance(results_data, dict):
-                results = results_data.get("data", [])
-            elif isinstance(results_data, list):
-                results = results_data
-            else:
-                results = []
-
-            # Filter results
-            filtered_results = []
-
-            for result in results:
-                if isinstance(result, dict):
-                    result_url = result.get("url", "")
-                    result_domain = urlparse(result_url).netloc.lower()
-                    target_domain = urlparse(target_url).netloc.lower()
-
-                    # Skip if it's the exact same URL
-                    if result_url == target_url:
-                        continue
-
-                    # Skip if it's from the same domain (optional)
-                    if exclude_domain and result_domain == target_domain:
-                        continue
-
-                    filtered_results.append(result)
+                    filtered_results.append(simplified_result)
 
                     # Stop if we've reached the limit
                     if len(filtered_results) >= limit:
@@ -211,14 +186,21 @@ if __name__ == "__main__":
         print(f"\nSearching for articles mentioning: {test_url}")
         print("=" * 80)
 
-        # Search for link mentions
-        results = service.search_for_link_mentions(test_url, limit=5)
+        # Create a request struct
+        request = KagiSearchRequest(
+            target_url=test_url,
+            limit=5,
+            exclude_domain=True,
+        )
 
-        print(f"Found {len(results)} results:")
-        for i, result in enumerate(results, 1):
-            print(f"\n{i}. {result.get('title', 'No title')}")
-            print(f"   URL: {result.get('url', 'No URL')}")
-            print(f"   Snippet: {result.get('snippet', 'No snippet')[:150]}...")
+        # Use the unified search method
+        result: KagiSearchResult = service.search(request)
+
+        print(f"Found {len(result.results)} results:")
+        for i, search_result in enumerate(result.results, 1):
+            print(f"\n{i}. {search_result.title}")
+            print(f"   URL: {search_result.url}")
+            print(f"   Snippet: {search_result.snippet[:150]}...")
 
         print("\n" + "=" * 80)
 

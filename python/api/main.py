@@ -9,16 +9,22 @@ if platform.system() == "Windows":
     else:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
+import base64
+import json
+from contextlib import asynccontextmanager
+from typing import List, Optional
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
-from services.sitepage_link_finder import SiteLinkFinder, PathFinder
+from services.kagi_search_service import (
+    KagiSearchRequest,
+    KagiSearchResult,
+    KagiSearchService,
+)
+from services.sitepage_link_finder import PathFinder, SiteLinkFinder
 from services.website_screenshot_service import ScreenshotAPI
-from typing import List, Optional
-from contextlib import asynccontextmanager
-import base64
-import json
 
 # Initialize screenshot API with browser pooling
 screenshot_cache_dir = "./cache/screenshot_cache"
@@ -29,6 +35,7 @@ screenshot_pool_size = 3  # Number of browser instances to maintain in pool
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from pathlib import Path
+
     from services.website_screenshot_service import (
         get_browser_pool,
         shutdown_browser_pool,
@@ -89,6 +96,31 @@ async def get_links(url: str):
         summary = finder.get_summary()
         summary["regular_links"] = finder.regular_links_within_main_text
         return summary
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/kagi-search", response_model=KagiSearchResult)
+async def kagi_search(request: KagiSearchRequest):
+    """
+    Search for articles that mention or link to a specific URL using Kagi search.
+
+    Args:
+        target_url: The URL to search for
+        limit: Maximum number of results (default: 10)
+        exclude_domain: Whether to exclude same-domain results (default: True)
+        search_type: Type of search - 'mentions' for general mentions, 'articles' for specific link inclusion
+
+    Returns:
+        List of search results with article information
+    """
+    try:
+        kagi_service = KagiSearchService()
+
+        results = kagi_service.search(request)
+
+        return results
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
