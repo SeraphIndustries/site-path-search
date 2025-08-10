@@ -1,5 +1,5 @@
-import { getLinksUrl } from '$lib/config.js';
-import type { LinkSummary } from '$lib/types/linkAnalysis';
+import { getKagiSearchUrl, getLinksUrl } from '$lib/config.js';
+import type { KagiSearchSummary, LinkSummary } from '$lib/types/linkAnalysis';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -16,6 +16,32 @@ export class LinkAnalysisService {
 		return await response.json();
 	}
 
+	static async analyzeKagiSearch(
+		targetUrl: string,
+		limit: number = 10,
+		excludeDomain: boolean = true
+	): Promise<KagiSearchSummary> {
+		const response = await fetch(getKagiSearchUrl(), {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				target_url: targetUrl,
+				limit: limit,
+				exclude_domain: excludeDomain
+			})
+		});
+
+		if (!response.ok) {
+			throw new Error(
+				`Failed to fetch Kagi search data from server: ${response.status} ${response.statusText}`
+			);
+		}
+
+		return await response.json();
+	}
+
 	static async *autonomousPath({
 		startUrl,
 		endUrl,
@@ -25,8 +51,18 @@ export class LinkAnalysisService {
 		endUrl: string;
 		maxDepth?: number;
 	}) {
-		const url = `${API_BASE_URL}/autonomous-path?start_url=${encodeURIComponent(startUrl)}&end_url=${encodeURIComponent(endUrl)}&max_depth=${maxDepth}`;
-		const response = await fetch(url);
+		const url = `${API_BASE_URL}/autonomous-path`;
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				start_url: startUrl,
+				end_url: endUrl,
+				max_depth: maxDepth
+			})
+		});
 		if (!response.body) throw new Error('No response body');
 		const reader = response.body.getReader();
 		const decoder = new TextDecoder();

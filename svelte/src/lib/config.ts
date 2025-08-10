@@ -15,32 +15,8 @@ export const SCREENSHOT_CONFIG = {
 };
 
 // Build the screenshot URL
-export function getScreenshotUrl(
-	url: string,
-	options?: {
-		width?: number;
-		height?: number;
-		quality?: number;
-		fullPage?: boolean;
-		format?: string;
-	}
-) {
-	const params = new URLSearchParams({
-		url: url,
-		width: (options?.width || SCREENSHOT_CONFIG.defaultWidth).toString(),
-		height: (options?.height || SCREENSHOT_CONFIG.defaultHeight).toString(),
-		quality: (options?.quality || SCREENSHOT_CONFIG.defaultQuality).toString()
-	});
-
-	if (options?.fullPage) {
-		params.append('full_page', 'true');
-	}
-
-	if (options?.format) {
-		params.append('format', options.format);
-	}
-
-	return `${API_BASE_URL}/screenshot?${params.toString()}`;
+export function getScreenshotUrl() {
+	return `${API_BASE_URL}/screenshot`;
 }
 
 // Health check URL
@@ -51,4 +27,9 @@ export function getHealthUrl() {
 // Links analysis URL
 export function getLinksUrl(url: string) {
 	return `${API_BASE_URL}/links?url=${encodeURIComponent(url)}`;
+}
+
+// Kagi search URL
+export function getKagiSearchUrl() {
+	return `${API_BASE_URL}/kagi-search`;
 }

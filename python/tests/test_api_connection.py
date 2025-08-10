@@ -4,10 +4,11 @@ Test script to verify API endpoints are working correctly.
 This helps diagnose connection issues between frontend and backend.
 """
 
-import requests
 import json
 import sys
 from urllib.parse import urljoin
+
+import requests
 
 # Configuration
 API_BASE_URL = "http://localhost:8000"
@@ -52,8 +53,9 @@ def test_links_endpoint():
 def test_screenshot_endpoint():
     print("\n📸 Testing screenshot endpoint...")
     try:
-        response = requests.get(
-            f"{API_BASE_URL}/screenshot?url={TEST_URL}&width=200&height=150&quality=85",
+        response = requests.post(
+            f"{API_BASE_URL}/screenshot",
+            json={"url": TEST_URL, "width": 200, "height": 150, "quality": 85},
             timeout=30,
         )
         if response.status_code == 200:
@@ -79,8 +81,9 @@ def test_screenshot_endpoint():
 def test_screenshot_thumbnail():
     print("\n🖼️  Testing thumbnail endpoint...")
     try:
-        response = requests.get(
-            f"{API_BASE_URL}/screenshot/thumbnail?url={TEST_URL}&width=200&height=150",
+        response = requests.post(
+            f"{API_BASE_URL}/screenshot/thumbnail",
+            json={"url": TEST_URL, "width": 200, "height": 150, "quality": 85},
             timeout=30,
         )
         if response.status_code == 200:
@@ -138,8 +141,10 @@ def test_proxy_endpoints():
             return False
 
         # Test screenshot through proxy
-        response = requests.get(
-            f"{proxy_base}/screenshot?url={TEST_URL}&width=100&height=100", timeout=30
+        response = requests.post(
+            f"{proxy_base}/screenshot",
+            json={"url": TEST_URL, "width": 100, "height": 100},
+            timeout=30,
         )
         if response.status_code == 200:
             print("✅ Proxy screenshot endpoint working")

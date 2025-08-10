@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { LinkAnalysisService } from '$lib/services/linkAnalysisService';
 	import type { PathNode, PathState } from '$lib/types/linkAnalysis';
-	import { analyzeEndUrl, analyzeLinkFromNode, analyzeStartUrl } from '$lib/utils/nodeAnalysis';
+	import {
+		analyzeEndUrl,
+		analyzeKagiSearchFromNode,
+		analyzeLinkFromNode,
+		analyzeStartUrl
+	} from '$lib/utils/nodeAnalysis';
 	import { calculateNodePosition, generateNodeId } from '$lib/utils/nodePositioning';
 	import {
 		clearPath,
@@ -113,6 +118,17 @@
 		}
 	}
 
+	async function handleAnalyzeKagiSearchFromNode(parentNodeId: string, targetUrl: string) {
+		try {
+			const result = await analyzeKagiSearchFromNode(parentNodeId, targetUrl, pathState);
+			if (!result.success) {
+				console.error('Failed to analyze Kagi search:', result.error);
+			}
+		} finally {
+			pathState = { ...pathState }; // Trigger reactivity
+		}
+	}
+
 	function handleSelectNode(nodeId: string) {
 		selectNode(nodeId, pathState);
 		pathState = { ...pathState }; // Trigger reactivity
@@ -175,13 +191,15 @@
 							id: nodeId,
 							url: event.url,
 							linkSummary: null,
+							kagiSearchSummary: null,
 							error: '',
 							isLoading: false,
 							parentId,
 							level: nodeLevel,
 							position,
 							isStartNode,
-							isEndNode
+							isEndNode,
+							isKagiSearchNode: false
 						};
 						pathState.nodes.set(nodeId, node);
 						pathState = { ...pathState };
@@ -302,6 +320,7 @@
 			{pathState}
 			onNodeSelect={selectNodeWrapper}
 			onLinkClick={handleAnalyzeLinkFromNode}
+			onKagiSearchClick={handleAnalyzeKagiSearchFromNode}
 			onNodePositionUpdate={updateNodePositionWrapper}
 			autonomousProgress={{ visited: [], currentPath: [], foundPath: [] }}
 		/>
@@ -377,6 +396,7 @@
 			{pathState}
 			onNodeSelect={selectNodeWrapper}
 			onLinkClick={() => {}}
+			onKagiSearchClick={() => {}}
 			onNodePositionUpdate={updateNodePositionWrapper}
 			{autonomousProgress}
 		/>

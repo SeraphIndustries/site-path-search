@@ -22,19 +22,28 @@
 
 		try {
 			// Use our custom screenshot service via proxy - get screenshot
-			const screenshotUrl = getScreenshotUrl(url, {
-				width: SCREENSHOT_CONFIG.fullPageWidth,
-				height: SCREENSHOT_CONFIG.fullPageHeight,
-				quality: SCREENSHOT_CONFIG.defaultQuality
+			const screenshotUrl = getScreenshotUrl();
+			const response = await fetch(screenshotUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					url: url,
+					width: SCREENSHOT_CONFIG.fullPageWidth,
+					height: SCREENSHOT_CONFIG.fullPageHeight,
+					quality: SCREENSHOT_CONFIG.defaultQuality
+				})
 			});
-			const response = await fetch(screenshotUrl);
 
 			if (response.ok) {
 				// Convert the image blob to a data URL
 				const blob = await response.blob();
+
 				previewImage = URL.createObjectURL(blob);
 			} else {
 				// Fallback to placeholder if screenshot service fails
+				console.error('Screenshot request failed:', response.status, response.statusText);
 				const encodedUrl = encodeURIComponent(url);
 				previewImage = `https://via.placeholder.com/200x150/3b82f6/ffffff?text=${encodeURIComponent(new URL(url).hostname)}`;
 			}
@@ -87,7 +96,13 @@
 					src={previewImage}
 					alt="Preview of {url}"
 					class="preview-image"
-					on:error={() => (hasError = true)}
+					on:error={(e) => {
+						console.error('Image failed to load:', e);
+						hasError = true;
+					}}
+					on:load={() => {
+						console.log('Image loaded successfully');
+					}}
 				/>
 			{/if}
 		</div>

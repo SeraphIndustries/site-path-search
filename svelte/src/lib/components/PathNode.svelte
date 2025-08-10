@@ -1,15 +1,14 @@
 <script lang="ts">
 	import type { PathNode as PathNodeType } from '$lib/types/linkAnalysis';
-	import LinkCard from './LinkCard.svelte';
 	import ErrorDisplay from './ErrorDisplay.svelte';
 
 	import {
 		createNodeInteractionState,
-		toggleExpanded,
-		showMoreLinks,
+		getDisplayedLinks,
 		handleKeyboardInteraction,
 		handleWheelScroll,
-		getDisplayedLinks,
+		showMoreLinks,
+		toggleExpanded,
 		type NodeInteractionState
 	} from '$lib/utils/nodeInteraction';
 
@@ -17,6 +16,7 @@
 	export let isSelected: boolean;
 	export let onSelect: () => void;
 	export let onLinkClick: (linkUrl: string) => void;
+	export let onKagiSearchClick: (targetUrl: string) => void;
 	export let onPositionUpdate: (position: { x: number; y: number }) => void;
 	export let isDark: boolean = false;
 	export let isInPath: boolean = false;
@@ -84,6 +84,10 @@
 		onLinkClick(linkUrl);
 	}
 
+	function handleKagiSearchClick(targetUrl: string) {
+		onKagiSearchClick(targetUrl);
+	}
+
 	function handleShowMore() {
 		showMoreLinks(interactionState);
 	}
@@ -121,6 +125,7 @@
 	class:end-node={isEndNode}
 	class:start-chain={connectionOrigin === 'start' && !isStartNode && !isEndNode}
 	class:end-chain={connectionOrigin === 'end' && !isStartNode && !isEndNode}
+	class:kagi-search-node={node.isKagiSearchNode}
 	style="left: {node.position.x}px; top: {node.position.y}px;"
 	data-level={node.level}
 	on:mousedown={handleMouseDown}
@@ -136,13 +141,16 @@
 				class="node-level"
 				class:start-level={isStartNode || connectionOrigin === 'start'}
 				class:end-level={isEndNode || connectionOrigin === 'end'}
-				>{node.level >= 0
-					? `L${node.level}`
-					: isStartNode && isEndNode
-						? 'START/END'
-						: isStartNode
-							? 'START'
-							: 'END'}</span
+				class:kagi-level={node.isKagiSearchNode}
+				>{node.isKagiSearchNode
+					? '🔍'
+					: node.level >= 0
+						? `L${node.level}`
+						: isStartNode && isEndNode
+							? 'START/END'
+							: isStartNode
+								? 'START'
+								: 'END'}</span
 			>
 			<span class="node-url">{node.url}</span>
 		</div>
@@ -192,15 +200,52 @@
 					<h4>Clickable Links:</h4>
 					<div class="links-grid" on:wheel={handleWheel}>
 						{#each displayedLinks as link}
-							<button class="link-button" on:click={() => handleLinkClick(link)}>
-								<span class="link-text">{link}</span>
-							</button>
+							<div class="link-options">
+								<button class="link-button primary" on:click={() => handleLinkClick(link)}>
+									<span class="link-text">{link}</span>
+								</button>
+								<button
+									class="link-button kagi-search"
+									on:click={() => handleKagiSearchClick(link)}
+									title="Search for external sites linking to this URL"
+								>
+									🔍
+								</button>
+							</div>
 						{/each}
 						{#if !interactionState.showAllLinks && node.linkSummary.regular_links.length > interactionState.linksToShow}
 							<button class="more-links" on:click={handleShowMore}>
 								+{node.linkSummary.regular_links.length - interactionState.linksToShow} more
 							</button>
 						{/if}
+					</div>
+				</div>
+			{/if}
+		</div>
+	{:else if node.kagiSearchSummary && interactionState.isExpanded}
+		<div class="node-content">
+			<div class="summary-stats">
+				<div class="stat">
+					<span class="stat-label">Target URL:</span>
+					<span class="stat-value">{node.kagiSearchSummary.target_url}</span>
+				</div>
+				<div class="stat">
+					<span class="stat-label">Results Found:</span>
+					<span class="stat-value">{node.kagiSearchSummary.results.length}</span>
+				</div>
+			</div>
+
+			{#if node.kagiSearchSummary.results.length > 0}
+				<div class="links-section">
+					<h4>External Sites Linking to Target:</h4>
+					<div class="links-grid" on:wheel={handleWheel}>
+						{#each node.kagiSearchSummary.results as result}
+							<div class="kagi-result">
+								<div class="result-title">{result.title}</div>
+								<div class="result-url">{result.url}</div>
+								<div class="result-snippet">{result.snippet}</div>
+							</div>
+						{/each}
 					</div>
 				</div>
 			{/if}
@@ -322,6 +367,35 @@
 		border-color: #34d399;
 	}
 
+	/* Kagi search node styling */
+	.path-node.kagi-search-node {
+		border-color: #8b5cf6;
+		background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+	}
+
+	.path-node.dark.kagi-search-node {
+		background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+		border-color: #8b5cf6;
+	}
+
+	.path-node.kagi-search-node .node-header {
+		background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+		border-bottom-color: #8b5cf6;
+	}
+
+	.path-node.dark.kagi-search-node .node-header {
+		background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+		border-bottom-color: #8b5cf6;
+	}
+
+	.path-node.kagi-search-node .node-level {
+		background: #8b5cf6;
+	}
+
+	.path-node.dark.kagi-search-node .node-level {
+		background: #a855f7;
+	}
+
 	.path-node.selected {
 		border-color: #f59e0b;
 		box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
@@ -438,6 +512,15 @@
 
 	.path-node.dark .node-level.end-level {
 		background: #10b981;
+	}
+
+	.node-level.kagi-level {
+		background: #8b5cf6;
+		font-size: 1rem;
+	}
+
+	.path-node.dark .node-level.kagi-level {
+		background: #a855f7;
 	}
 
 	/* Combined start and end level styling */
@@ -583,6 +666,27 @@
 		padding-right: 0.5rem;
 	}
 
+	.link-options {
+		display: flex;
+		gap: 0.25rem;
+		align-items: stretch;
+	}
+
+	.link-options .link-button {
+		flex: 1;
+	}
+
+	.link-options .link-button.kagi-search {
+		flex: 0 0 auto;
+		width: 2.5rem;
+		min-height: 2.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1rem;
+		padding: 0.5rem;
+	}
+
 	.links-grid::-webkit-scrollbar {
 		width: 6px;
 	}
@@ -700,6 +804,51 @@
 	}
 
 	.path-node.dark .blank-message {
+		color: #9ca3af;
+	}
+
+	.kagi-result {
+		padding: 0.75rem;
+		background: #f3f4f6;
+		border: 1px solid #e5e7eb;
+		border-radius: 0.375rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.path-node.dark .kagi-result {
+		background: #374151;
+		border-color: #4b5563;
+	}
+
+	.result-title {
+		font-weight: 600;
+		color: #111827;
+		margin-bottom: 0.25rem;
+		font-size: 0.875rem;
+	}
+
+	.path-node.dark .result-title {
+		color: #f9fafb;
+	}
+
+	.result-url {
+		color: #3b82f6;
+		font-size: 0.75rem;
+		margin-bottom: 0.5rem;
+		word-break: break-all;
+	}
+
+	.path-node.dark .result-url {
+		color: #60a5fa;
+	}
+
+	.result-snippet {
+		color: #6b7280;
+		font-size: 0.75rem;
+		line-height: 1.4;
+	}
+
+	.path-node.dark .result-snippet {
 		color: #9ca3af;
 	}
 </style>

@@ -4,9 +4,9 @@ Setup script for the Website Screenshot Service.
 This script helps install dependencies and configure the service.
 """
 
+import os
 import subprocess
 import sys
-import os
 from pathlib import Path
 
 
@@ -89,6 +89,7 @@ def test_installation():
 
     try:
         import asyncio
+
         from website_screenshot_service import WebsiteScreenshotService
 
         async def test_screenshot():
@@ -127,7 +128,8 @@ def print_next_steps():
     print("\n3. Access the API documentation:")
     print("   http://localhost:8000/docs")
     print("\n4. Test a screenshot endpoint:")
-    print("   http://localhost:8000/screenshot?url=https://www.example.com")
+    print("   POST http://localhost:8000/screenshot")
+    print('   Body: {"url": "https://www.example.com"}')
     print("\n5. Check the health endpoint:")
     print("   http://localhost:8000/health")
     print("\nFor more information, see README_SCREENSHOT_SERVICE.md")

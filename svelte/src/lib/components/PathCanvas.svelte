@@ -1,29 +1,28 @@
 <script lang="ts">
-	import PathNode from './PathNode.svelte';
-	import WebsitePreview from './WebsitePreview.svelte';
-	import type { PathState, PathNode as PathNodeType } from '$lib/types/linkAnalysis';
+	import type { PathState } from '$lib/types/linkAnalysis';
 	import {
+		checkDarkMode,
 		createCanvasState,
-		initializeCanvasOffset,
+		handleCanvasKeyDown,
 		handleCanvasMouseDown,
 		handleCanvasMouseMove,
 		handleCanvasMouseUp,
-		handleCanvasKeyDown,
 		handleCanvasWheel,
+		resetView,
 		updateCanvasTransform,
+		ZOOM_LIMITS,
 		zoomIn,
 		zoomOut,
-		resetView,
-		checkDarkMode,
-		ZOOM_LIMITS,
 		type CanvasState
 	} from '$lib/utils/canvasOperations';
 	import {
 		calculateConnections,
-		getConnectionOrigin,
+		createBlankEndNode,
 		createBlankStartNode,
-		createBlankEndNode
+		getConnectionOrigin
 	} from '$lib/utils/connectionUtils';
+	import PathNode from './PathNode.svelte';
+	import WebsitePreview from './WebsitePreview.svelte';
 
 	type AutonomousProgress = {
 		visited: string[];
@@ -35,6 +34,7 @@
 	export let pathState: PathState;
 	export let onNodeSelect: (nodeId: string) => void;
 	export let onLinkClick: (parentNodeId: string, linkUrl: string) => void;
+	export let onKagiSearchClick: (parentNodeId: string, targetUrl: string) => void;
 	export let onNodePositionUpdate: (nodeId: string, position: { x: number; y: number }) => void;
 	export let autonomousProgress: AutonomousProgress = {
 		visited: [],
@@ -336,6 +336,7 @@
 					isSelected={node.id === pathState.selectedNodeId}
 					onSelect={() => onNodeSelect(node.id)}
 					onLinkClick={(linkUrl: string) => onLinkClick(node.id, linkUrl)}
+					onKagiSearchClick={(targetUrl: string) => onKagiSearchClick(node.id, targetUrl)}
 					onPositionUpdate={(position: { x: number; y: number }) =>
 						onNodePositionUpdate(node.id, position)}
 					isInPath={autonomousProgress &&

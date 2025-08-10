@@ -9,7 +9,6 @@ if platform.system() == "Windows":
     else:
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-import base64
 import json
 from contextlib import asynccontextmanager
 from typing import List, Optional
@@ -70,23 +69,33 @@ class LinkSummary(BaseModel):
     regular_links: List[str]
 
 
-class ScreenshotRequest(BaseModel):
+class ScreenshotPostRequest(BaseModel):
     url: str
-    width: Optional[int] = 200
-    height: Optional[int] = 150
-    full_page: Optional[bool] = False
-    quality: Optional[int] = 90
-    format: Optional[str] = "jpeg"
-    use_cache: Optional[bool] = True
+    width: int = 200
+    height: int = 150
+    full_page: bool = False
+    quality: int = 90
+    format: str = "jpeg"
+    use_cache: bool = True
 
 
-class ScreenshotResponse(BaseModel):
+class ThumbnailRequest(BaseModel):
     url: str
-    image_base64: str
-    width: int
-    height: int
-    format: str
-    size_bytes: int
+    width: int = 200
+    height: int = 150
+    quality: int = 85
+
+
+class FullPageScreenshotRequest(BaseModel):
+    url: str
+    width: int = 1200
+    quality: int = 90
+
+
+class AutonomousPathRequest(BaseModel):
+    start_url: str
+    end_url: str
+    max_depth: int = 3
 
 
 @app.get("/links", response_model=LinkSummary)
@@ -125,52 +134,8 @@ async def kagi_search(request: KagiSearchRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/screenshot", response_model=ScreenshotResponse)
-async def take_screenshot(request: ScreenshotRequest):
-    """
-    Take a screenshot of a website and return it as base64.
-    """
-    try:
-        api = ScreenshotAPI(
-            cache_dir=screenshot_cache_dir,
-            max_cache_size=screenshot_max_cache_size,
-            pool_size=screenshot_pool_size,
-        )
-
-        screenshot_bytes = await api.get_screenshot(
-            url=request.url,
-            width=request.width or 200,
-            height=request.height or 150,
-            full_page=request.full_page or False,
-            quality=request.quality or 90,
-            format=request.format or "jpeg",
-            use_cache=request.use_cache or True,
-        )
-
-        image_base64 = base64.b64encode(screenshot_bytes).decode("utf-8")
-
-        return ScreenshotResponse(
-            url=request.url,
-            image_base64=image_base64,
-            width=request.width or 200,
-            height=request.height or 150,
-            format=request.format or "jpeg",
-            size_bytes=len(screenshot_bytes),
-        )
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@app.get("/screenshot")
-async def take_screenshot_get(
-    url: str = Query(..., description="URL to screenshot"),
-    width: int = Query(200, description="Screenshot width"),
-    height: int = Query(150, description="Screenshot height"),
-    full_page: bool = Query(False, description="Take full page screenshot"),
-    quality: int = Query(90, description="Image quality (1-100)"),
-    format: str = Query("jpeg", description="Image format (jpeg, png, webp)"),
-    use_cache: bool = Query(True, description="Use cached screenshot if available"),
-):
+@app.post("/screenshot")
+async def take_screenshot(request: ScreenshotPostRequest):
     """
     Take a screenshot of a website and return it as an image response.
     """
@@ -182,22 +147,31 @@ async def take_screenshot_get(
         )
 
         screenshot_bytes = await api.get_screenshot(
-            url=url,
-            width=width,
-            height=height,
-            full_page=full_page,
-            quality=quality,
-            format=format,
-            use_cache=use_cache,
+            url=request.url,
+            width=request.width,
+            height=request.height,
+            full_page=request.full_page,
+            quality=request.quality,
+            format=request.format,
+            use_cache=request.use_cache,
         )
 
-        content_type = f"image/{format}"
-        return Response(content=screenshot_bytes, media_type=content_type)
+        content_type = f"image/{request.format}"
+        return Response(
+            content=screenshot_bytes,
+            media_type=content_type,
+            headers={
+                "Cache-Control": "public, max-age=3600",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+            },
+        )
     except Exception as e:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"Screenshot failed for {url}: {str(e)}")
+        logger.error(f"Screenshot failed for {request.url}: {str(e)}")
 
         error_detail = f"Screenshot failed: {str(e)}"
         if "NotImplementedError" in str(e):
@@ -210,19 +184,17 @@ async def take_screenshot_get(
         raise HTTPException(status_code=400, detail=error_detail)
 
 
-@app.get("/screenshot/thumbnail")
-async def take_thumbnail(
-    url: str = Query(..., description="URL to screenshot"),
-    width: int = Query(200, description="Thumbnail width"),
-    height: int = Query(150, description="Thumbnail height"),
-    quality: int = Query(85, description="Image quality (1-100)"),
-):
+@app.post("/screenshot/thumbnail")
+async def take_thumbnail(request: ThumbnailRequest):
     try:
         from services.website_screenshot_service import WebsiteScreenshotService
 
         async with WebsiteScreenshotService() as service:
             screenshot_bytes = await service.take_thumbnail(
-                url=url, width=width, height=height, quality=quality
+                url=request.url,
+                width=request.width,
+                height=request.height,
+                quality=request.quality,
             )
 
         return Response(content=screenshot_bytes, media_type="image/jpeg")
@@ -230,18 +202,14 @@ async def take_thumbnail(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/screenshot/full-page")
-async def take_full_page_screenshot(
-    url: str = Query(..., description="URL to screenshot"),
-    width: int = Query(1200, description="Viewport width"),
-    quality: int = Query(90, description="Image quality (1-100)"),
-):
+@app.post("/screenshot/full-page")
+async def take_full_page_screenshot(request: FullPageScreenshotRequest):
     try:
         from services.website_screenshot_service import WebsiteScreenshotService
 
         async with WebsiteScreenshotService() as service:
             screenshot_bytes = await service.take_full_page_screenshot(
-                url=url, width=width, quality=quality
+                url=request.url, width=request.width, quality=request.quality
             )
 
         return Response(content=screenshot_bytes, media_type="image/jpeg")
@@ -249,18 +217,16 @@ async def take_full_page_screenshot(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.get("/autonomous-path")
-async def autonomous_path(
-    start_url: str = Query(..., description="Start URL"),
-    end_url: str = Query(..., description="End URL"),
-    max_depth: int = Query(3, description="Maximum search depth"),
-):
+@app.post("/autonomous-path")
+async def autonomous_path(request: AutonomousPathRequest):
     """
     Stream autonomous path finding progress from start_url to end_url.
     """
 
     def event_stream():
-        path_finder = PathFinder(start_url, end_url, max_depth=max_depth)
+        path_finder = PathFinder(
+            request.start_url, request.end_url, max_depth=request.max_depth
+        )
         # We'll use a custom version of find_path that yields progress
         visited = set()
         found = False
@@ -268,7 +234,7 @@ async def autonomous_path(
 
         def _search(current_url, current_path, depth):
             nonlocal found, path
-            if depth >= max_depth or found:
+            if depth >= request.max_depth or found:
                 return
             if current_url in visited:
                 return
@@ -278,7 +244,7 @@ async def autonomous_path(
             yield json.dumps(
                 {"event": "visit", "url": current_url, "path": new_path, "depth": depth}
             ) + "\n"
-            if current_url == end_url:
+            if current_url == request.end_url:
                 found = True
                 path = new_path
                 yield json.dumps({"event": "found", "path": path}) + "\n"
@@ -308,7 +274,7 @@ async def autonomous_path(
                 return
 
         # Start the search
-        yield from _search(start_url, [], 0)
+        yield from _search(request.start_url, [], 0)
         if not found:
             yield json.dumps({"event": "not_found", "path": []}) + "\n"
 
