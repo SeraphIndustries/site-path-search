@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { PathState, PathNode } from '$lib/types/linkAnalysis';
+import type { PathNode, PathState } from '$lib/types/linkAnalysis';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-	generateNodeId,
 	calculateNodePosition,
+	calculateNodePositionFromParent,
 	findOptimalPosition,
-	calculateNodePositionFromParent
+	generateNodeId
 } from './nodePositioning';
 
 // Mock the collision detection utility
@@ -186,7 +186,9 @@ describe('nodePositioning', () => {
 				level: 0,
 				position: { x: 1000, y: 1000 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('parent-123', parentNode);
 			vi.mocked(checkPositionCollision).mockReturnValue(false);
@@ -236,7 +238,9 @@ describe('nodePositioning', () => {
 				level: -1,
 				position: { x: 500, y: 1000 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			parentNode.parentId = 'grandparent-123';

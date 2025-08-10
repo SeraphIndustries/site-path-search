@@ -1,4 +1,4 @@
-import type { PathState, PathNode } from '$lib/types/linkAnalysis';
+import type { PathNode, PathState } from '$lib/types/linkAnalysis';
 
 export interface Connection {
 	nodeId: string;
@@ -145,12 +145,14 @@ export function createBlankStartNode(): PathNode {
 		id: 'blank-start',
 		url: 'Enter start URL',
 		linkSummary: null,
+		kagiSearchSummary: null,
 		error: '',
 		isLoading: false,
 		level: -1,
 		position: { x: 4800, y: 5000 },
 		isStartNode: true,
-		isEndNode: false
+		isEndNode: false,
+		isKagiSearchNode: false
 	};
 }
 
@@ -159,11 +161,13 @@ export function createBlankEndNode(): PathNode {
 		id: 'blank-end',
 		url: 'Enter end URL',
 		linkSummary: null,
+		kagiSearchSummary: null,
 		error: '',
 		isLoading: false,
 		level: -1,
 		position: { x: 5700, y: 5000 },
 		isStartNode: false,
-		isEndNode: true
+		isEndNode: true,
+		isKagiSearchNode: false
 	};
 }

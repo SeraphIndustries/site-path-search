@@ -312,6 +312,7 @@
 					onSelect={() => {}}
 					onLinkClick={() => {}}
 					onPositionUpdate={() => {}}
+					onKagiSearchClick={() => {}}
 					isInPath={true}
 				/>
 			{/if}
@@ -324,6 +325,7 @@
 					onSelect={() => {}}
 					onLinkClick={() => {}}
 					onPositionUpdate={() => {}}
+					onKagiSearchClick={() => {}}
 					isInPath={true}
 				/>
 			{/if}

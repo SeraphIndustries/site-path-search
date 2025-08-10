@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	createDragState,
-	startDrag,
-	updateDragPosition,
 	endDrag,
 	setupGlobalDragListeners,
+	startDrag,
+	updateDragPosition,
 	type DragState
 } from './nodeDragging';
 
@@ -54,7 +54,7 @@ describe('nodeDragging', () => {
 		});
 
 		it('should not start dragging when clicking on expand button', () => {
-			const expandButton = {
+			const expandButton: any = {
 				className: 'expand-button',
 				closest: vi.fn((selector) => (selector === '.expand-button' ? expandButton : null))
 			};
@@ -75,7 +75,7 @@ describe('nodeDragging', () => {
 		});
 
 		it('should not start dragging when clicking on link button', () => {
-			const linkButton = {
+			const linkButton: any = {
 				className: 'link-button',
 				closest: vi.fn((selector) => (selector === '.link-button' ? linkButton : null))
 			};
@@ -92,7 +92,7 @@ describe('nodeDragging', () => {
 		});
 
 		it('should not start dragging when clicking on more-links element', () => {
-			const moreLinks = {
+			const moreLinks: any = {
 				className: 'more-links',
 				closest: vi.fn((selector) => (selector === '.more-links' ? moreLinks : null))
 			};
@@ -109,8 +109,8 @@ describe('nodeDragging', () => {
 		});
 
 		it('should calculate drag start offset correctly', () => {
-			mockEvent.clientX = 500;
-			mockEvent.clientY = 600;
+			(mockEvent as any).clientX = 500;
+			(mockEvent as any).clientY = 600;
 			nodePosition = { x: 150, y: 250 };
 
 			startDrag(mockEvent, nodePosition, dragState);
@@ -221,7 +221,7 @@ describe('nodeDragging', () => {
 
 			// Get the registered mousemove handler
 			const mouseMoveHandler = mockWindow.addEventListener.mock.calls.find(
-				(call) => call[0] === 'mousemove'
+				(call: any) => call[0] === 'mousemove'
 			)[1];
 
 			const mockEvent = { clientX: 100, clientY: 200 } as MouseEvent;
@@ -235,7 +235,7 @@ describe('nodeDragging', () => {
 			setupGlobalDragListeners(dragState, mockOnMouseMove, mockOnMouseUp);
 
 			const mouseMoveHandler = mockWindow.addEventListener.mock.calls.find(
-				(call) => call[0] === 'mousemove'
+				(call: any) => call[0] === 'mousemove'
 			)[1];
 
 			const mockEvent = { clientX: 100, clientY: 200 } as MouseEvent;
@@ -249,7 +249,7 @@ describe('nodeDragging', () => {
 			setupGlobalDragListeners(dragState, mockOnMouseMove, mockOnMouseUp);
 
 			const mouseUpHandler = mockWindow.addEventListener.mock.calls.find(
-				(call) => call[0] === 'mouseup'
+				(call: any) => call[0] === 'mouseup'
 			)[1];
 
 			mouseUpHandler();
@@ -263,7 +263,7 @@ describe('nodeDragging', () => {
 			setupGlobalDragListeners(dragState, mockOnMouseMove, mockOnMouseUp);
 
 			const mouseUpHandler = mockWindow.addEventListener.mock.calls.find(
-				(call) => call[0] === 'mouseup'
+				(call: any) => call[0] === 'mouseup'
 			)[1];
 
 			mouseUpHandler();
@@ -298,7 +298,7 @@ describe('nodeDragging', () => {
 			setupGlobalDragListeners(dragState, mockOnMouseMove, mockOnMouseUp);
 
 			const mouseMoveHandler = mockWindow.addEventListener.mock.calls.find(
-				(call) => call[0] === 'mousemove'
+				(call: any) => call[0] === 'mousemove'
 			)[1];
 
 			// Simulate multiple mouse move events

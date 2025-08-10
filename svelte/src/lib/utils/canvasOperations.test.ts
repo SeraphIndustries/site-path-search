@@ -1,19 +1,19 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { PathNode } from '$lib/types/linkAnalysis';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-	createCanvasState,
 	ZOOM_LIMITS,
-	initializeCanvasOffset,
+	checkDarkMode,
+	createCanvasState,
+	handleCanvasKeyDown,
 	handleCanvasMouseDown,
 	handleCanvasMouseMove,
 	handleCanvasMouseUp,
-	handleCanvasKeyDown,
 	handleCanvasWheel,
+	initializeCanvasOffset,
+	resetView,
 	updateCanvasTransform,
 	zoomIn,
 	zoomOut,
-	resetView,
-	checkDarkMode,
 	type CanvasState
 } from './canvasOperations';
 
@@ -72,7 +72,9 @@ describe('canvasOperations', () => {
 				level: 0,
 				position: { x: 100, y: 200 },
 				isStartNode: true,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const endNode: PathNode = {
@@ -84,7 +86,9 @@ describe('canvasOperations', () => {
 				level: 0,
 				position: { x: 300, y: 400 },
 				isStartNode: false,
-				isEndNode: true
+				isEndNode: true,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			initializeCanvasOffset(mockCanvasWrapper, startNode, endNode, canvasState);
@@ -381,7 +385,9 @@ describe('canvasOperations', () => {
 				level: -1,
 				position: { x: 4800, y: 5000 },
 				isStartNode: true,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			const blankEndNode: PathNode = {
 				id: 'blank-end',
@@ -392,7 +398,9 @@ describe('canvasOperations', () => {
 				level: -1,
 				position: { x: 5700, y: 5000 },
 				isStartNode: false,
-				isEndNode: true
+				isEndNode: true,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			resetView(nodes, blankStartNode, blankEndNode, mockCanvasWrapper, canvasState);
@@ -411,7 +419,9 @@ describe('canvasOperations', () => {
 					level: 0,
 					position: { x: 100, y: 200 },
 					isStartNode: false,
-					isEndNode: false
+					isEndNode: false,
+					kagiSearchSummary: null,
+					isKagiSearchNode: false
 				},
 				{
 					id: 'node2',
@@ -422,7 +432,9 @@ describe('canvasOperations', () => {
 					level: 1,
 					position: { x: 300, y: 400 },
 					isStartNode: false,
-					isEndNode: false
+					isEndNode: false,
+					kagiSearchSummary: null,
+					isKagiSearchNode: false
 				}
 			];
 
@@ -435,7 +447,9 @@ describe('canvasOperations', () => {
 				level: -1,
 				position: { x: 4800, y: 5000 },
 				isStartNode: true,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			const blankEndNode: PathNode = {
 				id: 'blank-end',
@@ -446,7 +460,9 @@ describe('canvasOperations', () => {
 				level: -1,
 				position: { x: 5700, y: 5000 },
 				isStartNode: false,
-				isEndNode: true
+				isEndNode: true,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			resetView(nodes, blankStartNode, blankEndNode, mockCanvasWrapper, canvasState);

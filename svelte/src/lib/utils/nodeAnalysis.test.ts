@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { PathState, PathNode, LinkSummary } from '$lib/types/linkAnalysis';
 import { LinkAnalysisService } from '$lib/services/linkAnalysisService';
-import { analyzeStartUrl, analyzeEndUrl, analyzeLinkFromNode } from './nodeAnalysis';
+import type { LinkSummary, PathNode, PathState } from '$lib/types/linkAnalysis';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { analyzeEndUrl, analyzeLinkFromNode, analyzeStartUrl } from './nodeAnalysis';
 
 // Mock the LinkAnalysisService
 vi.mock('$lib/services/linkAnalysisService', () => ({
@@ -202,7 +202,9 @@ describe('nodeAnalysis', () => {
 				level: 0,
 				position: { x: 500, y: 500 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('parent-123', parentNode);
 		});
@@ -229,7 +231,9 @@ describe('nodeAnalysis', () => {
 				position: { x: 800, y: 600 },
 				parentId: 'parent-123',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('existing-123', existingNode);
 

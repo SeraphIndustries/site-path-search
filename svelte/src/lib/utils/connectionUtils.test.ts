@@ -1,11 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { PathState, PathNode } from '$lib/types/linkAnalysis';
+import type { PathNode, PathState } from '$lib/types/linkAnalysis';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-	getConnectionOrigin,
 	calculateConnections,
-	createBlankStartNode,
 	createBlankEndNode,
-	type Connection
+	createBlankStartNode,
+	getConnectionOrigin
 } from './connectionUtils';
 
 describe('connectionUtils', () => {
@@ -41,7 +40,9 @@ describe('connectionUtils', () => {
 				level: -1,
 				position: { x: 100, y: 100 },
 				isStartNode: true,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('start-node', startNode);
 
@@ -59,7 +60,9 @@ describe('connectionUtils', () => {
 				level: -1,
 				position: { x: 100, y: 100 },
 				isStartNode: false,
-				isEndNode: true
+				isEndNode: true,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('end-node', endNode);
 
@@ -78,7 +81,9 @@ describe('connectionUtils', () => {
 				level: -1,
 				position: { x: 100, y: 100 },
 				isStartNode: true,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const node1: PathNode = {
@@ -91,7 +96,9 @@ describe('connectionUtils', () => {
 				position: { x: 200, y: 100 },
 				parentId: 'start',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const node2: PathNode = {
@@ -104,7 +111,9 @@ describe('connectionUtils', () => {
 				position: { x: 300, y: 100 },
 				parentId: 'node1',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const node3: PathNode = {
@@ -117,7 +126,9 @@ describe('connectionUtils', () => {
 				position: { x: 400, y: 100 },
 				parentId: 'node2',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			pathState.nodes.set('start', startNode);
@@ -139,7 +150,9 @@ describe('connectionUtils', () => {
 				level: 0,
 				position: { x: 100, y: 100 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('orphan', orphanNode);
 
@@ -158,7 +171,9 @@ describe('connectionUtils', () => {
 				position: { x: 100, y: 100 },
 				parentId: 'node2',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const node2: PathNode = {
@@ -171,7 +186,9 @@ describe('connectionUtils', () => {
 				position: { x: 200, y: 100 },
 				parentId: 'node1',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			pathState.nodes.set('node1', node1);
@@ -218,7 +235,9 @@ describe('connectionUtils', () => {
 					level: 0,
 					position: { x: 100, y: 100 },
 					isStartNode: false,
-					isEndNode: false
+					isEndNode: false,
+					kagiSearchSummary: null,
+					isKagiSearchNode: false
 				}
 			];
 
@@ -244,7 +263,9 @@ describe('connectionUtils', () => {
 				position: { x: 500, y: 500 },
 				parentId: 'blank-start',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			// Add node to pathState so getConnectionOrigin can find it
@@ -288,7 +309,9 @@ describe('connectionUtils', () => {
 				position: { x: 500, y: 500 },
 				parentId: 'blank-end',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			// Add node to pathState so getConnectionOrigin can find it
@@ -325,7 +348,9 @@ describe('connectionUtils', () => {
 				level: 0,
 				position: { x: 200, y: 300 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const childNode: PathNode = {
@@ -338,7 +363,9 @@ describe('connectionUtils', () => {
 				position: { x: 400, y: 500 },
 				parentId: 'parent',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			pathState.nodes.set('parent', parentNode);
@@ -376,7 +403,9 @@ describe('connectionUtils', () => {
 				level: 0,
 				position: { x: 0, y: 0 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const childNode: PathNode = {
@@ -389,7 +418,9 @@ describe('connectionUtils', () => {
 				position: { x: 200, y: 400 },
 				parentId: 'parent',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			pathState.nodes.set('parent', parentNode);
@@ -423,7 +454,9 @@ describe('connectionUtils', () => {
 				position: { x: 500, y: 600 },
 				parentId: 'blank-start',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const nodes = [childNode];
@@ -458,7 +491,9 @@ describe('connectionUtils', () => {
 				level: 0,
 				position: { x: 100, y: 100 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const childNode: PathNode = {
@@ -471,7 +506,9 @@ describe('connectionUtils', () => {
 				position: { x: 200, y: 200 },
 				parentId: 'parent',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			pathState.nodes.set('parent', parentNode);
@@ -500,7 +537,9 @@ describe('connectionUtils', () => {
 				level: 0,
 				position: { x: 100, y: 100 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const childNode: PathNode = {
@@ -513,7 +552,9 @@ describe('connectionUtils', () => {
 				position: { x: 200, y: 200 },
 				parentId: 'parent',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			pathState.nodes.set('parent', parentNode);
@@ -541,7 +582,9 @@ describe('connectionUtils', () => {
 				position: { x: 200, y: 200 },
 				parentId: 'non-existent-parent',
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const nodes = [childNode];
@@ -571,7 +614,9 @@ describe('connectionUtils', () => {
 				level: -1,
 				position: { x: 4800, y: 5000 },
 				isStartNode: true,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			});
 		});
 	});
@@ -589,7 +634,9 @@ describe('connectionUtils', () => {
 				level: -1,
 				position: { x: 5700, y: 5000 },
 				isStartNode: false,
-				isEndNode: true
+				isEndNode: true,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			});
 		});
 	});

@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { PathState, PathNode } from '$lib/types/linkAnalysis';
+import type { PathNode, PathState } from '$lib/types/linkAnalysis';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-	checkRectangleCollision,
 	checkPositionCollision,
-	createRectangle,
-	type Rectangle
+	checkRectangleCollision,
+	createRectangle
 } from './collisionDetection';
 
 describe('collisionDetection', () => {
@@ -102,7 +101,9 @@ describe('collisionDetection', () => {
 				level: 0,
 				position: { x: 1000, y: 1000 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			const node2: PathNode = {
@@ -114,7 +115,9 @@ describe('collisionDetection', () => {
 				level: 1,
 				position: { x: 2000, y: 1000 },
 				isStartNode: false,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 
 			pathState.nodes.set('node1', node1);
@@ -177,7 +180,9 @@ describe('collisionDetection', () => {
 				level: -1,
 				position: { x: 4800, y: 5000 },
 				isStartNode: true,
-				isEndNode: false
+				isEndNode: false,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('start', startNode);
 
@@ -198,7 +203,9 @@ describe('collisionDetection', () => {
 				level: -1,
 				position: { x: 5700, y: 5000 },
 				isStartNode: false,
-				isEndNode: true
+				isEndNode: true,
+				kagiSearchSummary: null,
+				isKagiSearchNode: false
 			};
 			pathState.nodes.set('end', endNode);
 

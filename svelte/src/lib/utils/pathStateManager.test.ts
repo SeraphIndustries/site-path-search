@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { PathState, PathNode } from '$lib/types/linkAnalysis';
+import type { PathNode, PathState } from '$lib/types/linkAnalysis';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-	createInitialPathState,
-	selectNode,
-	updateNodePosition,
 	clearPath,
+	createInitialPathState,
 	getNodesArray,
-	getSelectedNode
+	getSelectedNode,
+	selectNode,
+	updateNodePosition
 } from './pathStateManager';
 
 describe('pathStateManager', () => {
@@ -32,7 +32,9 @@ describe('pathStateManager', () => {
 			position: { x: 500, y: 600 },
 			parentId: 'parent-node',
 			isStartNode: false,
-			isEndNode: false
+			isEndNode: false,
+			kagiSearchSummary: null,
+			isKagiSearchNode: false
 		};
 	});
 
